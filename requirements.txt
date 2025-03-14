@@ -1,0 +1,12 @@
+crawl4ai==0.4.248
+nest_asyncio
+requests
+supabase>=2.13.0
+playwright
+python-dotenv>=1.0.0
+pytest
+openai>=1.0.0
+PyYAML
+httpx>=0.25.0
+python-dotenv>=1.0.0
+openai>=1.0.0

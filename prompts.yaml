@@ -1,0 +1,11 @@
+
+keyword_extraction_prompt: |
+  Given the following article content, extract the top 5 keywords that best capture its core themes and provide a confidence score between 0 and 1 for each keyword.
+  Return the result as a JSON list of objects without any additional explanation, where each object has "keyword" and "confidence" keys.
+  Article content:
+  {article_content}
+
+content_extraction_prompt: |
+  You are a content extractor. Extract the core article text from the page.
+  Return the content in JSON format as a list of objects, each with "tags" and "content".
+  Only include the core article content.
