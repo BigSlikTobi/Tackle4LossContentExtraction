@@ -98,7 +98,7 @@ Article content to process:
                 {"role": "user", "content": prompt}
             ],
             temperature=1.0,  
-            max_tokens=16000  
+            max_tokens=8000  
         )
         
         # Get the response text
