@@ -112,7 +112,7 @@ async def process_article(article: Dict[str, Any]) -> Dict[str, Any]:
         if response.data:
             print(f"Successfully updated article {article_id} in database")
             # Create and store embedding after successful content processing
-            create_and_store_embedding(article_id, processed_article["main_content"])
+            await asyncio.to_thread(create_and_store_embedding, article_id, processed_article["main_content"])
         else:
             print(f"No rows updated for article {article_id}")
     except Exception as e:
