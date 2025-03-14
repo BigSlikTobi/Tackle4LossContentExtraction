@@ -4,7 +4,8 @@ For each article:
 1. Fetch unprocessed articles from the database
 2. Extract the main content from each article
 3. Clean and structure the content
-4. Update the database with processed content
+4. Create and store embeddings
+5. Update the database with processed content
 """
 import asyncio
 import sys
@@ -20,6 +21,7 @@ from fetchUnprocessedArticles import get_unprocessed_articles, supabase_client
 from extractContent import extract_main_content
 from cleanContent import extract_content_with_llm, analyze_content_type
 from LLM_init import initialize_llm_client
+from create_embeddings import create_and_store_embedding
 
 # Initialize the LLM client from the shared module
 client = initialize_llm_client()
@@ -109,6 +111,8 @@ async def process_article(article: Dict[str, Any]) -> Dict[str, Any]:
         
         if response.data:
             print(f"Successfully updated article {article_id} in database")
+            # Create and store embedding after successful content processing
+            await asyncio.to_thread(create_and_store_embedding, article_id, processed_article["main_content"])
         else:
             print(f"No rows updated for article {article_id}")
     except Exception as e:

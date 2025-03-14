@@ -1,9 +1,9 @@
 name: Run T4L Content Pipeline
 
 on:
-  schedule:
-    # Run every 10 minutes
-    - cron: '*/10 * * * *'
+  # schedule:
+  #   # Run every 10 minutes
+  #   - cron: '*/10 * * * *'
   # Allow manual triggering
   workflow_dispatch:
 

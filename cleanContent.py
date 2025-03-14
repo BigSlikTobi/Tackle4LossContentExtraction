@@ -3,6 +3,8 @@
 This script reads the extracted content from JSON and uses the Deepseek LLM to
 extract and structure the content into a clean format.
 """
+# TODO: Add gpt4o-mini for extraction tasks
+# TODO: enable retry (3 times) for empty content extraction
 
 import json
 import os
@@ -96,7 +98,7 @@ Article content to process:
                 {"role": "user", "content": prompt}
             ],
             temperature=1.0,  
-            max_tokens=8000  
+            max_tokens=16000  
         )
         
         # Get the response text
