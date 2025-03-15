@@ -81,7 +81,7 @@ def clean_publication_date(date_string: str) -> Optional[str]:
         
         return formatted_date
     except Exception as e:
-        print(f"Error parsing date '{date_string}': {e}")
+        logging.error(f"Error parsing date '{date_string}': {e}")
         return None
 
 def extract_content_with_llm(content: str) -> Dict[str, str]:
