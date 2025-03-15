@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 """
-This script reads the extracted content from JSON and uses the Deepseek LLM to
+This script reads the extracted content from JSON and uses multiple LLM models to
 extract and structure the content into a clean format.
 """
-# TODO: Add gpt4o-mini for extraction tasks
+# TODO: Add -4o-mini for extraction tasks
 # TODO: enable retry (3 times) for empty content extraction
 
 import json
 import os
 import re
-from typing import Dict, List, Any
-from LLM_init import initialize_llm_client
+from typing import Dict, List, Any, Tuple
+from LLM_init import initialize_llm_client, ModelType
 
-# Initialize the LLM client
-client = initialize_llm_client()
+# Initialize both LLM clients
+deepseek_client, deepseek_model = initialize_llm_client(model_type="deepseek")
+gpt4_client, gpt4_model = initialize_llm_client(model_type="gpt-4o-mini")
 
 def load_extracted_content(file_path: str) -> Dict[str, Any]:
     """
@@ -58,7 +59,7 @@ def clean_text(text: str) -> str:
 
 def extract_content_with_llm(content: str) -> Dict[str, str]:
     """
-    Extract article content using the Deepseek LLM.
+    Extract article content using GPT-4o-mini for better extraction capabilities.
     
     Args:
         content: The raw content to process
@@ -91,14 +92,15 @@ Article content to process:
 {cleaned_content}"""
 
     try:
-        response = client.chat.completions.create(
-            model="deepseek-reasoner",
+        # Using GPT-4o-mini for content extraction
+        response = gpt4_client.chat.completions.create(
+            model=gpt4_model,
             messages=[
                 {"role": "system", "content": "You are a content extraction assistant that outputs only valid JSON."},
                 {"role": "user", "content": prompt}
             ],
             temperature=1.0,  
-            max_tokens=8000  
+            max_tokens=16000  
         )
         
         # Get the response text
@@ -139,6 +141,7 @@ Article content to process:
 def analyze_content_type(content: Dict[str, str]) -> Dict[str, Any]:
     """
     Analyze the content and determine its category using Deepseek LLM.
+    Uses Deepseek for its strong analytical capabilities.
     
     Args:
         content: Dictionary containing the article content with title and main_content
@@ -169,8 +172,9 @@ Content to analyze:
 {content_summary}"""
 
     try:
-        response = client.chat.completions.create(
-            model="deepseek-reasoner",
+        # Using Deepseek for content analysis
+        response = deepseek_client.chat.completions.create(
+            model=deepseek_model,
             messages=[
                 {"role": "system", "content": "You are a content analysis assistant that outputs only valid JSON."},
                 {"role": "user", "content": prompt}
