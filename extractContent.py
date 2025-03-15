@@ -7,21 +7,22 @@ import random
 from crawl4ai import AsyncWebCrawler, CacheMode
 from crawl4ai.extraction_strategy import LLMExtractionStrategy
 from fetchUnprocessedArticles import get_unprocessed_articles
-from LLM_init import initialize_llm_client
+from LLM_init import initialize_llm_client, ModelType
 
-# Initialize the LLM client from the shared module
-client = initialize_llm_client()
-api_token = os.environ.get("DEEPSEEK_API_KEY")  # Get API key from environment
+# Initialize the LLM client with configurable model type
+MODEL_TYPE: ModelType = os.getenv("LLM_MODEL_TYPE", "gpt-4o-mini")
+client, model_name = initialize_llm_client(model_type=MODEL_TYPE)
+api_token = os.environ.get("OPENAI_API_KEY")  # Get API key from environment
 
 async def extract_main_content(full_url: str) -> str:
     async with AsyncWebCrawler(verbose=False) as crawler:
         try:
             # Create LLM strategy with text output instead of JSON
             llm_strategy = LLMExtractionStrategy(
-                provider="deepseek/deepseek-reasoner",
+                provider="openai/gpt-4o-mini",
                 api_token=api_token,
                 verbose=True,
-                max_tokens=8000,
+                max_tokens=16000,
                 temperature=1.0,
                 word_count_threshold=50,
                 exclude_tags=["footer", "header", "nav", "aside", "script", "style","img"],
