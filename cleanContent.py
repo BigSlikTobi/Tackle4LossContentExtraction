@@ -9,7 +9,9 @@ extract and structure the content into a clean format.
 import json
 import os
 import re
-from typing import Dict, List, Any, Tuple
+import datetime
+from dateutil import parser
+from typing import Dict, List, Any, Tuple, Optional
 from LLM_init import initialize_llm_client, ModelType
 
 # Initialize both LLM clients
@@ -56,6 +58,31 @@ def clean_text(text: str) -> str:
     text = re.sub(r'\s+', ' ', text).strip()
     
     return text
+
+def clean_publication_date(date_string: str) -> Optional[str]:
+    """
+    Convert publication date to PostgreSQL timestamptz format.
+    
+    Args:
+        date_string: The original publication date string
+        
+    Returns:
+        Formatted date string in timestamptz format or None if parsing fails
+    """
+    if not date_string:
+        return None
+    
+    try:
+        # Try to parse the date string using dateutil parser
+        parsed_date = parser.parse(date_string, fuzzy=True)
+        
+        # Format date as ISO 8601 format which is compatible with PostgreSQL timestamptz
+        formatted_date = parsed_date.isoformat()
+        
+        return formatted_date
+    except Exception as e:
+        print(f"Error parsing date '{date_string}': {e}")
+        return None
 
 def extract_content_with_llm(content: str) -> Dict[str, str]:
     """
@@ -242,6 +269,12 @@ def process_all_articles(extracted_data: Dict[str, Any]) -> Dict[str, Dict[str, 
             # Process with LLM
             processed_article = extract_content_with_llm(content)
             
+            # Clean date to timestamptz format if it's not empty
+            if processed_article.get("publication_date"):
+                processed_article["cleaned_date_timestamptz"] = clean_publication_date(processed_article["publication_date"])
+            else:
+                processed_article["cleaned_date_timestamptz"] = None
+                
             # Analyze content type
             content_analysis = analyze_content_type(processed_article)
             processed_article["content_type"] = content_analysis["content_type"]
@@ -254,6 +287,8 @@ def process_all_articles(extracted_data: Dict[str, Any]) -> Dict[str, Dict[str, 
             print(f"Processed article {article_id}:")
             print(f"  Title: {processed_article['title'][:70]}..." if len(processed_article['title']) > 70 else f"  Title: {processed_article['title']}")
             print(f"  Date: {processed_article['publication_date']}")
+            if processed_article["cleaned_date_timestamptz"]:
+                print(f"  Cleaned Date: {processed_article['cleaned_date_timestamptz']}")
             print(f"  Author: {processed_article['author']}")
             print(f"  Content length: {len(processed_article['main_content'])} chars")
             print(f"  Content type: {processed_article['content_type']} (confidence: {processed_article['type_confidence']:.2f})")
