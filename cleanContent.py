@@ -11,8 +11,17 @@ import os
 import re
 import datetime
 from dateutil import parser
+import logging
 from typing import Dict, List, Any, Tuple, Optional
 from LLM_init import initialize_llm_client, ModelType
+from supabase import create_client, Client
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Initialize both LLM clients
 deepseek_client, deepseek_model = initialize_llm_client(model_type="deepseek")
@@ -171,11 +180,20 @@ def analyze_content_type(content: Dict[str, str]) -> Dict[str, Any]:
     Uses Deepseek for its strong analytical capabilities.
     
     Args:
-        content: Dictionary containing the article content with title and main_content
+        content: Dictionary containing the article content with title, main_content, and url
         
     Returns:
         Dictionary with content type and confidence score
     """
+    # Check for news-round-up based on URL
+    url = content.get("url", "")
+    if "nfl-news-roundup" in url:
+        return {
+            "content_type": "news-round-up",
+            "confidence": 1.0,
+            "reasoning": "URL contains 'nfl-news-roundup' pattern"
+        }
+
     # Prepare the content for analysis
     title = content.get("title", "")
     main_content = content.get("main_content", "")
@@ -184,7 +202,7 @@ def analyze_content_type(content: Dict[str, str]) -> Dict[str, Any]:
     content_summary = f"Title: {title}\n\nContent excerpt: {main_content[:1000]}..."
     
     prompt = f"""Analyze the following content and determine its category. Return a JSON object with the following fields:
-    - content_type: One of ["news_article", "topic_collection", "news_collection", "empty_content"]
+    - content_type: One of ["news_article", "topic_collection", "news_collection", "empty_content", "news-round-up"]
     - confidence: A number between 0 and 1
     - reasoning: A brief explanation of why this category was chosen
 
@@ -192,6 +210,7 @@ Rules for categorization:
 - news_article: A single coherent news article with a clear topic and narrative about one specific news or information
 - topic_collection: A collection of related news snippets that all cover different stories about the same topic
 - news_collection: A general collection of unrelated news items covering multiple topics
+- news-round-up: A collection of NFL news updates typically found in roundup articles
 - empty_content: Content that is too short, contains no meaningful information, or is clearly not a news article
 - wrong_content: Content that is not covering the topic NFL American Football and is teherefore not relevant
 
@@ -224,7 +243,7 @@ Content to analyze:
         result = json.loads(response_text)
         
         # Validate the content type
-        valid_types = ["news_article", "topic_collection", "news_collection", "empty_content"]
+        valid_types = ["news_article", "topic_collection", "news_collection", "empty_content", "news-round-up"]
         if result.get("content_type") not in valid_types:
             raise ValueError(f"Invalid content type. Must be one of {valid_types}")
             
@@ -314,6 +333,61 @@ def save_cleaned_content(cleaned_data: Dict[str, Dict[str, str]], output_file: s
     except Exception as e:
         print(f"Error saving cleaned content: {e}")
 
+def update_existing_articles_content_type() -> None:
+    """
+    Check and update content types for all existing articles in the database.
+    Particularly useful for applying new content type rules to existing articles.
+    """
+    try:
+        # Fetch all processed articles from the database
+        response = supabase_client.table("SourceArticles").select("*").eq("isProcessed", True).execute()
+        articles = response.data
+
+        if not articles:
+            print("No processed articles found in the database.")
+            return
+
+        print(f"Found {len(articles)} processed articles to check.")
+        updated_count = 0
+
+        for article in articles:
+            try:
+                # Create content dictionary for analyze_content_type
+                content_data = {
+                    "title": article.get("title", ""),
+                    "main_content": article.get("Content", ""),
+                    "url": article.get("url", "")
+                }
+
+                # Analyze content type
+                content_analysis = analyze_content_type(content_data)
+                
+                # Only update if the content type would change
+                if content_analysis["content_type"] != article.get("contentType"):
+                    update_data = {
+                        "contentType": content_analysis["content_type"]
+                    }
+                    
+                    # Update the article in the database
+                    supabase_client.table("SourceArticles").update(update_data).eq("id", article["id"]).execute()
+                    updated_count += 1
+                    
+                    print(f"Updated article {article['id']}:")
+                    print(f"  Old content type: {article.get('contentType')}")
+                    print(f"  New content type: {content_analysis['content_type']}")
+                    print(f"  Confidence: {content_analysis['confidence']:.2f}")
+                    print(f"  Reasoning: {content_analysis['reasoning']}")
+                    print()
+
+            except Exception as e:
+                print(f"Error processing article {article.get('id')}: {e}")
+                continue
+
+        print(f"\nUpdate complete. Modified {updated_count} out of {len(articles)} articles.")
+
+    except Exception as e:
+        print(f"Error fetching articles from database: {e}")
+
 def main():
     # File paths
     input_file = os.path.join(os.path.dirname(__file__), 'extracted_contents.json')
@@ -344,4 +418,9 @@ def main():
     print(f"Articles with empty content: {empty_content}")
 
 if __name__ == "__main__":
-    main()
+    import sys
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "--update-content-types":
+        update_existing_articles_content_type()
+    else:
+        main()
