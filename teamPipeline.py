@@ -113,7 +113,7 @@ async def process_article(article: Dict[str, Any], debug: bool = DEBUG) -> Dict[
         print("\n===== DEBUG MODE: SKIPPING DATABASE UPDATE =====")
         print("Data that would be updated:")
         for key, value in update_data.items():
-            if key == "Content":
+            if key == "content":
                 print(f"  {key}: {value[:100]}..." if len(value) > 100 else f"  {key}: {value}")
             else:
                 print(f"  {key}: {value}")
