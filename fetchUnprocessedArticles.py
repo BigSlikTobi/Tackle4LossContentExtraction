@@ -24,3 +24,14 @@ def get_unprocessed_articles() -> List[Dict]:
 if __name__ == "__main__":
     unprocessed_articles = get_unprocessed_articles()
     print(f"Found {len(unprocessed_articles)} unprocessed articles.")
+
+def get_unprocessed_team_articles() -> List[Dict]:
+    """
+    Fetches TeamSourceArticles records where isProcessed = false.
+    """
+    try:
+        response = supabase_client.table("TeamSourceArticles").select("*").eq("isProcessed", False).execute()
+        return response.data or []
+    except Exception as e:
+        print(f"Error fetching unprocessed items from Supabase: {e}")
+        return []
