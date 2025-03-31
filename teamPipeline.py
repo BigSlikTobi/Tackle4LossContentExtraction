@@ -127,8 +127,8 @@ async def process_article(article: Dict[str, Any], debug: bool = DEBUG) -> Dict[
             else:
                 print(f"No rows updated for article {article_id}")
         except Exception as e:
-            print(f"[ERROR] Failed to update database: {e}")
-    
+            logging.error(f"Failed to update database for article {article_id}: {e}")
+            raise
     return processed_article
 
 async def main(debug: bool = DEBUG):
