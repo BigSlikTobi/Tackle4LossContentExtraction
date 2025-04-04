@@ -5,13 +5,15 @@ For each article:
 2. Extract the main content from each article
 3. Clean and structure the content
 4. Create and store embeddings
-5. Update the database with processed content
+5. Check for similar articles and update duplications
+6. Update the database with processed content
 """
 import asyncio
 import sys
 import os
 import time
-from typing import Dict, Any
+from datetime import datetime, timedelta, UTC
+from typing import Dict, Any, List, Set
 
 # Add the parent directory to the Python path to allow for absolute imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,9 +24,67 @@ from extractContent import extract_main_content
 from cleanContent import extract_content_with_llm, analyze_content_type
 from LLM_init import initialize_llm_client
 from create_embeddings import create_and_store_embedding
+from find_similar_articles import (
+    find_similar_articles,
+    print_similar_articles,
+    fetch_article_details,
+    update_duplicate_articles
+)
 
 # Initialize the LLM client from the shared module
 client = initialize_llm_client()
+
+def fetch_latest_embeddings(article_ids: Set[int]) -> List[Dict[str, Any]]:
+    """
+    Fetch embeddings for newly processed articles and recent articles (within 48 hours).
+    
+    Args:
+        article_ids: Set of article IDs to fetch embeddings for
+        
+    Returns:
+        List of embedding dictionaries
+    """
+    try:
+        # Get articles from the last 48 hours
+        cutoff_time = (datetime.now(UTC) - timedelta(hours=48)).isoformat()
+        recent_articles = supabase_client.table("SourceArticles") \
+            .select("id") \
+            .gte("created_at", cutoff_time) \
+            .is_("duplication_of", "null") \
+            .execute()
+            
+        if recent_articles.data:
+            # Combine newly processed article IDs with recent article IDs
+            all_article_ids = set(article_ids) | {article["id"] for article in recent_articles.data}
+            
+            # Fetch embeddings for all articles
+            embeddings_response = supabase_client.table("ArticleVector") \
+                .select("id, embedding, SourceArticle") \
+                .in_("SourceArticle", list(all_article_ids)) \
+                .execute()
+                
+            if not embeddings_response.data:
+                print("No embeddings found for processed and recent articles")
+                return []
+                
+            print(f"Found {len(embeddings_response.data)} embeddings from processed and recent articles")
+            return embeddings_response.data
+        else:
+            # If no recent articles, just get embeddings for processed articles
+            embeddings_response = supabase_client.table("ArticleVector") \
+                .select("id, embedding, SourceArticle") \
+                .in_("SourceArticle", list(article_ids)) \
+                .execute()
+                
+            if not embeddings_response.data:
+                print("No embeddings found for processed articles")
+                return []
+                
+            print(f"Found {len(embeddings_response.data)} embeddings for newly processed articles")
+            return embeddings_response.data
+    except Exception as e:
+        print(f"Error fetching embeddings from database: {e}")
+        return []
 
 async def process_article(article: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -132,8 +192,9 @@ async def main():
             
         print(f"Found {len(unprocessed_articles)} unprocessed articles.")
         
-        # Step 2: Process each article through the entire pipeline
+        # Step 2: Process each article through the pipeline
         processed_count = 0
+        processed_article_ids = set()
         
         for i, article in enumerate(unprocessed_articles):
             print(f"\nProcessing article {i+1}/{len(unprocessed_articles)}")
@@ -141,11 +202,21 @@ async def main():
             # Process this article through extraction, cleaning, and database update
             processed_article = await process_article(article)
             processed_count += 1
+            processed_article_ids.add(article["id"])
             
             # Add a small delay between processing articles to avoid rate limiting
             if i < len(unprocessed_articles) - 1:
                 print("\nPausing briefly before processing next article...")
                 await asyncio.sleep(2)
+        
+        # Step 3: Check for similarities in newly processed articles
+        if processed_article_ids:
+            print("\nChecking for similar articles...")
+            embeddings = fetch_latest_embeddings(processed_article_ids)
+            
+            if embeddings:
+                similar_pairs = find_similar_articles(embeddings)
+                print_similar_articles(similar_pairs)
         
         print("\nPipeline complete!")
         print(f"Processed {processed_count} articles.")
