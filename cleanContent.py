@@ -25,7 +25,7 @@ supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Initialize both LLM clients
 deepseek_client, deepseek_model = initialize_llm_client(model_type="deepseek")
-gpt4_client, gpt4_model = initialize_llm_client(model_type="gpt-4o-mini")
+gpt4_client, gpt4_model = initialize_llm_client(model_type="gpt-4.1-nano-2025-04-14")
 
 def load_extracted_content(file_path: str) -> Dict[str, Any]:
     """
@@ -95,7 +95,7 @@ def clean_publication_date(date_string: str) -> Optional[str]:
 
 def extract_content_with_llm(content: str) -> Dict[str, str]:
     """
-    Extract article content using GPT-4o-mini for better extraction capabilities.
+    Extract article content using gpt-4.1-nano-2025-04-14 for better extraction capabilities.
     
     Args:
         content: The raw content to process
@@ -128,7 +128,7 @@ Article content to process:
 {cleaned_content}"""
 
     try:
-        # Using GPT-4o-mini for content extraction
+        # Using gpt-4.1-nano-2025-04-14 for content extraction
         response = gpt4_client.chat.completions.create(
             model=gpt4_model,
             messages=[

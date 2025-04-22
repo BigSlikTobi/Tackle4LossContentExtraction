@@ -10,7 +10,7 @@ from fetchUnprocessedArticles import get_unprocessed_articles
 from LLM_init import initialize_llm_client, ModelType
 
 # Initialize the LLM client with configurable model type
-MODEL_TYPE: ModelType = os.getenv("LLM_MODEL_TYPE", "gpt-4o-mini")
+MODEL_TYPE: ModelType = os.getenv("LLM_MODEL_TYPE", "gpt-4.1-nano-2025-04-14")
 client, model_name = initialize_llm_client(model_type=MODEL_TYPE)
 api_token = os.environ.get("OPENAI_API_KEY")  # Get API key from environment
 
@@ -19,7 +19,7 @@ async def extract_main_content(full_url: str) -> str:
         try:
             # Create LLM strategy with text output instead of JSON
             llm_strategy = LLMExtractionStrategy(
-                provider="openai/gpt-4o-mini",
+                provider=f"openai/{model_name}",  # Use the model_name from initialize_llm_client
                 api_token=api_token,
                 verbose=True,
                 max_tokens=16000,
