@@ -41,7 +41,7 @@ def initialize_llm_client(model_type: ModelType = "deepseek"):
     """
     # Handle the case where model_type is still "gpt-4o-mini" from environment variable
     if model_type == "gpt-4o-mini":
-        print("Warning: 'gpt-4o-mini' model type is deprecated, using 'gpt-4.1-nano-2025-04-14' instead.")
+        print("Using 'gpt-4.1-nano-2025-04-14' instead.")
         model_type = "gpt-4.1-nano-2025-04-14"
     
     try:
