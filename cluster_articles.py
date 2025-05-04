@@ -98,11 +98,10 @@ def fetch_embeddings_for_clustering(
             .select("id") \
             .gte("created_at", cutoff_time) \
             .eq("contentType", content_type) \
-            .is_("duplication_of", "null") \
             .execute()
 
         if not articles_response.data:
-            print("No non-duplicate articles found matching the criteria.")
+            print("No articles found matching the criteria.")
             return []
 
         article_ids = [article["id"] for article in articles_response.data]
@@ -367,8 +366,8 @@ if __name__ == "__main__":
     # Example usage: Run the pipeline directly
     # You might want to adjust parameters based on experimentation
     run_clustering_pipeline(
-        time_window_days=10,
-        eps=0.25, # Cosine distance threshold (lower = higher similarity required)
-                 # 0.25 corresponds to a cosine similarity of 0.75
+        time_window_days=20,
+        eps=0.15, # Cosine distance threshold (lower = higher similarity required)
+                 # 0.15 corresponds to a cosine similarity of 0.85
         min_samples=2 # Minimum 2 articles needed to form a cluster
     )
