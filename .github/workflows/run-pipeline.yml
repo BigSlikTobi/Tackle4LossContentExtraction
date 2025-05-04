@@ -10,6 +10,12 @@ on:
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
+    env: # <-- Moved env block here
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      # Add any other environment variables used in your application
     
     steps:
       - name: Checkout code
@@ -35,10 +41,3 @@ jobs:
 
       - name: Run article cluster pipeline
         run: python cluster_pipeline.py
-        
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          # Add any other environment variables used in your application
