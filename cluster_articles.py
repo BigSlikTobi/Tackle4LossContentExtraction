@@ -368,6 +368,6 @@ if __name__ == "__main__":
     run_clustering_pipeline(
         time_window_days=20,
         eps=0.15, # Cosine distance threshold (lower = higher similarity required)
-                 # 0.25 corresponds to a cosine similarity of 0.75
+                 # 0.15 corresponds to a cosine similarity of 0.85
         min_samples=2 # Minimum 2 articles needed to form a cluster
     )
