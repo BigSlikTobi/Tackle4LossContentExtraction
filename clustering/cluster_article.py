@@ -63,6 +63,9 @@ def fetch_unclustered() -> List[Tuple[int, np.ndarray]]:
     articles = []
     for r in resp.data:
         article_id = r["id"]
+        if not r["ArticleVector"]:
+            logger.warning(f"Article with ID {article_id} has an empty ArticleVector. Skipping.")
+            continue
         emb_str = r["ArticleVector"][0]["embedding"]
         values = [float(x) for x in emb_str.strip('[]').split(',')]
         articles.append((article_id, np.array(values, dtype=np.float32)))
