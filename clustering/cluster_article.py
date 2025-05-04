@@ -67,8 +67,11 @@ def fetch_unclustered() -> List[Tuple[int, np.ndarray]]:
             logger.warning(f"Article with ID {article_id} has an empty ArticleVector. Skipping.")
             continue
         emb_str = r["ArticleVector"][0]["embedding"]
-        values = [float(x) for x in emb_str.strip('[]').split(',')]
-        articles.append((article_id, np.array(values, dtype=np.float32)))
+        try:
+            embedding_array = parse_embedding(emb_str)
+            articles.append((article_id, embedding_array))
+        except ValueError:
+            logger.warning(f"Skipping article with ID {article_id} due to invalid embedding.")
     logger.info(f"Found {len(articles)} unclustered articles")
     return articles
 
