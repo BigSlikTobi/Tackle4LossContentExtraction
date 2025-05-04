@@ -1,5 +1,6 @@
 from openai import OpenAI
 import os
+import sys
 from dotenv import load_dotenv
 from typing import List
 from supabase import create_client, Client
@@ -8,6 +9,15 @@ import numpy as np  # Add numpy for vector normalization
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+# Check if the required environment variables are set
+if not SUPABASE_URL:
+    print("ERROR: SUPABASE_URL environment variable is not set")
+    sys.exit(1)
+if not SUPABASE_KEY:
+    print("ERROR: SUPABASE_KEY environment variable is not set")
+    sys.exit(1)
+
 supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 client = OpenAI()
