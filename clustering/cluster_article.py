@@ -44,8 +44,17 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
             b = b[::2]
         else:
             raise ValueError(f"Incompatible dimensions: {a.shape[0]} and {b.shape[0]}")
-            
-    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+    
+    # Compute norms
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+    
+    # Check for zero norms
+    if norm_a == 0 or norm_b == 0:
+        logger.warning("One or both vectors have zero norm. Returning similarity as 0.0.")
+        return 0.0
+    
+    return float(np.dot(a, b) / (norm_a * norm_b))
 
 
 def fetch_unclustered() -> List[Tuple[int, np.ndarray]]:
