@@ -1,3 +1,11 @@
+"""Extract content from unprocessed articles using a web crawler and LLM extraction strategy.""
+#         print(f"Content type: {processed_article['content_type']}")
+#         print(f"Content length: {len(processed_article['main_content'])} chars")
+#         print(f"Content type: {processed_article['content_type']}")
+#         print(f"Content length: {len(processed_article['main_content'])} chars")
+# -*- coding: utf-8 -*-
+"""
+
 import os
 import sys
 import json
@@ -6,8 +14,8 @@ import time
 import random
 from crawl4ai import AsyncWebCrawler, CacheMode
 from crawl4ai.extraction_strategy import LLMExtractionStrategy
-from fetchUnprocessedArticles import get_unprocessed_articles
-from LLM_init import initialize_llm_client, ModelType
+from core.db.fetch_unprocessed_articles import get_unprocessed_articles
+from core.utils.LLM_init import initialize_llm_client, ModelType
 
 # Initialize the LLM client with configurable model type
 MODEL_TYPE: ModelType = os.getenv("LLM_MODEL_TYPE", "gpt-4.1-nano-2025-04-14")

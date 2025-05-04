@@ -30,8 +30,12 @@ jobs:
         run: |
           python -m playwright install --with-deps chromium
           
-      - name: Run pipeline
-        run: python Pipeline.py
+      - name: Run article cleanup pipeline
+        run: python cleanup_pipeline.py
+
+      - name: Run article cluster pipeline
+        run: python cluster_pipeline.py
+        
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
