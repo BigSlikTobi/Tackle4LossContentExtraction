@@ -46,8 +46,8 @@ class ClusterManager:
         Returns:
             Tuple containing the new centroid and the updated member count
         """
-        if old_count < 1:
-            raise ValueError("Cluster member count must be at least 1")
+        if old_count < 2:
+            raise ValueError("Cluster member count must be at least 2")
         
         # Handle dimension mismatch
         old_centroid, new_vector = normalize_vector_dimensions(old_centroid, new_vector)
