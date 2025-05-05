@@ -172,3 +172,95 @@ def assign_article_to_cluster(article_id: int, cluster_id: str) -> None:
         "cluster_id": cluster_id
     }).eq("id", article_id).execute()
     logger.debug(f"Assigned article {article_id} to cluster {cluster_id}")
+
+def recalculate_cluster_member_counts() -> Dict[str, Tuple[int, int]]:
+    """Recalculate and update all cluster member counts based on actual article assignments.
+    
+    This function:
+    1. Counts how many articles are actually assigned to each cluster in the database
+    2. Updates the member_count field in the clusters table to match the actual count
+    3. Removes clusters with 0 members
+    4. Unlinks articles from clusters with only 1 member and deletes those clusters
+    5. Returns a dictionary with before/after counts for each cluster that had a discrepancy
+    
+    Returns:
+        Dictionary mapping cluster_id to a tuple of (old_count, new_count)
+    """
+    logger.info("Recalculating cluster member counts...")
+    
+    # Step 1: Get current counts from clusters table
+    clusters_resp = sb.table("clusters").select("cluster_id, member_count").execute()
+    current_counts = {r["cluster_id"]: r["member_count"] for r in clusters_resp.data}
+    
+    # Step 2: Count actual articles per cluster and keep track of article IDs
+    actual_counts = {}
+    cluster_articles = {}  # To store article IDs for each cluster
+    
+    for cluster_id in current_counts.keys():
+        articles_resp = sb.table("SourceArticles").select("id").eq("cluster_id", cluster_id).execute()
+        article_ids = [r["id"] for r in articles_resp.data]
+        actual_count = len(article_ids)
+        actual_counts[cluster_id] = actual_count
+        cluster_articles[cluster_id] = article_ids
+    
+    # Step 3: Find and fix discrepancies
+    discrepancies = {}
+    for cluster_id, current_count in current_counts.items():
+        actual_count = actual_counts.get(cluster_id, 0)
+        
+        if current_count != actual_count:
+            # Record the discrepancy
+            discrepancies[cluster_id] = (current_count, actual_count)
+            
+            if actual_count >= 2:
+                # Normal case: Update the cluster count
+                sb.table("clusters").update({
+                    "member_count": actual_count,
+                    "updated_at": "now()"
+                }).eq("cluster_id", cluster_id).execute()
+                logger.info(f"Updated cluster {cluster_id} member count: {current_count} → {actual_count}")
+    
+    # Step 4: Handle special cases - empty clusters and single-member clusters
+    empty_clusters = []
+    single_member_clusters = {}
+    
+    for cluster_id, actual_count in actual_counts.items():
+        if actual_count == 0:
+            # Case 1: Empty cluster - delete it
+            empty_clusters.append(cluster_id)
+        elif actual_count == 1:
+            # Case 2: Single-member cluster - remember article ID for unlinking
+            single_member_clusters[cluster_id] = cluster_articles[cluster_id][0]
+    
+    # Step 5: Delete empty clusters
+    if empty_clusters:
+        for cluster_id in empty_clusters:
+            sb.table("clusters").delete().eq("cluster_id", cluster_id).execute()
+            logger.info(f"Deleted empty cluster: {cluster_id}")
+    
+    # Step 6: Unlink articles from single-member clusters and delete those clusters
+    if single_member_clusters:
+        for cluster_id, article_id in single_member_clusters.items():
+            # Unlink article from cluster
+            sb.table("SourceArticles").update({
+                "cluster_id": None
+            }).eq("id", article_id).execute()
+            logger.info(f"Unlinked article {article_id} from single-member cluster {cluster_id}")
+            
+            # Delete the cluster
+            sb.table("clusters").delete().eq("cluster_id", cluster_id).execute()
+            logger.info(f"Deleted single-member cluster: {cluster_id}")
+    
+    # Log summary
+    total_fixed = len(discrepancies)
+    deleted_clusters = len(empty_clusters) + len(single_member_clusters)
+    
+    if total_fixed > 0:
+        logger.info(f"Fixed {total_fixed} cluster member count discrepancies")
+    else:
+        logger.info("All cluster member counts are accurate")
+        
+    if deleted_clusters > 0:
+        logger.info(f"Deleted {deleted_clusters} clusters ({len(empty_clusters)} empty, {len(single_member_clusters)} single-member)")
+    
+    return discrepancies

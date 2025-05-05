@@ -11,6 +11,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from modules.clustering.cluster_articles import run_clustering_process
+from core.clustering.db_access import recalculate_cluster_member_counts
 
 # Set up logging
 logging.basicConfig(
@@ -31,6 +32,14 @@ def process_new(threshold: float = 0.82) -> None:
     logger.info(f"Starting article clustering workflow with threshold {threshold}")
     run_clustering_process(threshold)
     logger.info("Article clustering workflow completed")
+    
+    # Automatically fix any cluster member count discrepancies
+    logger.info("Verifying and fixing cluster member counts...")
+    discrepancies = recalculate_cluster_member_counts()
+    if discrepancies:
+        logger.info(f"Fixed {len(discrepancies)} cluster member count discrepancies")
+    else:
+        logger.info("All cluster member counts are accurate")
 
 if __name__ == "__main__":
     process_new()
