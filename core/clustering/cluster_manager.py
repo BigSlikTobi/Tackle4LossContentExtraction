@@ -23,15 +23,21 @@ logger = logging.getLogger(__name__)
 class ClusterManager:
     """Manager class for handling article clustering operations."""
     
-    def __init__(self, similarity_threshold: float = 0.82):
+    def __init__(self, similarity_threshold: float = 0.82, check_old_clusters: bool = True):
         """Initialize the ClusterManager.
         
         Args:
             similarity_threshold: Minimum similarity score for articles to be considered related
+            check_old_clusters: Whether to check and update status of old clusters during initialization
         """
         self.similarity_threshold = similarity_threshold
         self.pending_articles: Dict[int, np.ndarray] = {}
         self.clusters: List[Tuple[str, np.ndarray, int]] = []
+        
+        # Check and update cluster statuses if enabled
+        if check_old_clusters:
+            from core.clustering.db_access import update_old_clusters_status
+            update_old_clusters_status()
         
     def update_cluster(self, cluster_id: str, old_centroid: np.ndarray, 
                       old_count: int, new_vector: np.ndarray) -> Tuple[np.ndarray, int]:
@@ -149,3 +155,15 @@ class ClusterManager:
         if article_id in self.pending_articles:
             del self.pending_articles[article_id]
             logger.debug(f"Removed article {article_id} from pending list")
+    
+    def update_cluster_statuses(self) -> int:
+        """Update the statuses of clusters based on their age.
+        
+        This method marks clusters as 'OLD' if they haven't been updated in 5 days
+        and aren't already marked as 'OLD'.
+        
+        Returns:
+            Number of clusters updated to 'OLD' status
+        """
+        from core.clustering.db_access import update_old_clusters_status
+        return update_old_clusters_status()
