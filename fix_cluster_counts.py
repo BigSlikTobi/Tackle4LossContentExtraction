@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""
+Utility script to fix cluster member counts by recalculating based on actual article assignments.
+This script also removes clusters with 0 or 1 members, as a proper cluster requires at least 2 articles.
+
+Usage:
+    python fix_cluster_counts.py
+"""
+
+import sys
+import os
+import logging
+
+# Add root directory to Python path to allow importing core modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from core.clustering.db_access import recalculate_cluster_member_counts
+
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+def main():
+    """Run cluster member count fix process."""
+    print("Starting to fix cluster member counts...")
+    
+    # Run the recalculation function
+    discrepancies = recalculate_cluster_member_counts()
+    
+    # Report the results
+    if discrepancies:
+        print(f"\nFixed {len(discrepancies)} cluster member count discrepancies:")
+        print("-" * 80)
+        print(f"{'Cluster ID':<40} {'Old Count':>8} {'New Count':>8} {'Difference':>10}")
+        print("-" * 80)
+        
+        for cluster_id, (old_count, new_count) in discrepancies.items():
+            print(f"{cluster_id:<40} {old_count:>8} {new_count:>8} {new_count - old_count:>+10}")
+    else:
+        print("\nAll cluster member counts were already accurate.")
+    
+    # Check for zero/one member clusters in logs
+    print("\nProcess completed successfully.")
+    print("Note: Clusters with 0 or 1 members have been automatically removed,")
+    print("and articles from single-member clusters have been unlinked.")
+
+if __name__ == "__main__":
+    main()
