@@ -25,27 +25,27 @@ logger = logging.getLogger(__name__)
 
 def main():
     """Run cluster member count fix process."""
-    print("Starting to fix cluster member counts...")
+    logger.info("Starting to fix cluster member counts...")
     
     # Run the recalculation function
     discrepancies = recalculate_cluster_member_counts()
     
     # Report the results
     if discrepancies:
-        print(f"\nFixed {len(discrepancies)} cluster member count discrepancies:")
-        print("-" * 80)
-        print(f"{'Cluster ID':<40} {'Old Count':>8} {'New Count':>8} {'Difference':>10}")
-        print("-" * 80)
+        logger.info(f"\nFixed {len(discrepancies)} cluster member count discrepancies:")
+        logger.info("-" * 80)
+        logger.info(f"{'Cluster ID':<40} {'Old Count':>8} {'New Count':>8} {'Difference':>10}")
+        logger.info("-" * 80)
         
         for cluster_id, (old_count, new_count) in discrepancies.items():
-            print(f"{cluster_id:<40} {old_count:>8} {new_count:>8} {new_count - old_count:>+10}")
+            logger.info(f"{cluster_id:<40} {old_count:>8} {new_count:>8} {new_count - old_count:>+10}")
     else:
-        print("\nAll cluster member counts were already accurate.")
+        logger.info("\nAll cluster member counts were already accurate.")
     
     # Check for zero/one member clusters in logs
-    print("\nProcess completed successfully.")
-    print("Note: Clusters with 0 or 1 members have been automatically removed,")
-    print("and articles from single-member clusters have been unlinked.")
+    logger.info("\nProcess completed successfully.")
+    logger.info("Note: Clusters with 0 or 1 members have been automatically removed,")
+    logger.info("and articles from single-member clusters have been unlinked.")
 
 if __name__ == "__main__":
     main()
