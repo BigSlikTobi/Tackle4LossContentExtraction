@@ -138,7 +138,8 @@ def update_cluster_in_db(cluster_id: str, new_centroid: np.ndarray, new_count: i
     sb.table("clusters").update({
         "centroid": new_centroid.tolist(),
         "member_count": new_count,
-        "updated_at": "now()"
+        "updated_at": "now()",
+        "status": "UPDATED"
     }).eq("cluster_id", cluster_id).execute()
     logger.debug(f"Updated cluster {cluster_id} in database (members: {new_count})")
 
@@ -156,7 +157,8 @@ def create_cluster_in_db(centroid: np.ndarray, member_count: int) -> str:
     sb.table("clusters").insert({
         "cluster_id": cluster_id,
         "centroid": centroid.tolist(),
-        "member_count": member_count
+        "member_count": member_count,
+        "status": "NEW"
     }).execute()
     logger.info(f"Created new cluster {cluster_id} with {member_count} articles")
     return cluster_id
@@ -264,3 +266,49 @@ def recalculate_cluster_member_counts() -> Dict[str, Tuple[int, int]]:
         logger.info(f"Deleted {deleted_clusters} clusters ({len(empty_clusters)} empty, {len(single_member_clusters)} single-member)")
     
     return discrepancies
+
+def update_old_clusters_status() -> int:
+    """Update status of clusters to 'OLD' if they haven't been updated in 3 days.
+    
+    Returns:
+        Number of clusters updated to OLD status
+    """
+    logger.info("Checking for clusters that haven't been updated in 3 days...")
+    
+    # Fetch clusters that aren't already marked as OLD
+    resp = sb.table("clusters")\
+             .select("cluster_id, updated_at")\
+             .not_.eq("status", "OLD")\
+             .execute()
+    
+    # In Python, calculate which clusters are older than 3 days
+    from datetime import datetime, timedelta
+    
+    three_days_ago = datetime.now() - timedelta(days=3)
+    old_cluster_ids = []
+    
+    for cluster in resp.data:
+        if "updated_at" in cluster and cluster["updated_at"]:
+            # Parse the timestamp from the database
+            updated_at = datetime.fromisoformat(cluster["updated_at"].replace("Z", "+00:00"))
+            
+            # Check if it's older than 3 days
+            if updated_at < three_days_ago:
+                old_cluster_ids.append(cluster["cluster_id"])
+    
+    # If we found old clusters, update their status
+    num_updated = 0
+    if old_cluster_ids:
+        for cluster_id in old_cluster_ids:
+            update_resp = sb.table("clusters")\
+                            .update({"status": "OLD"})\
+                            .eq("cluster_id", cluster_id)\
+                            .execute()
+            num_updated += 1
+    
+    if num_updated > 0:
+        logger.info(f"Updated {num_updated} clusters to 'OLD' status")
+    else:
+        logger.debug("No clusters needed to be updated to 'OLD' status")
+    
+    return num_updated

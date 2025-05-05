@@ -11,12 +11,12 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from modules.clustering.cluster_articles import run_clustering_process
-from core.clustering.db_access import recalculate_cluster_member_counts
+from core.clustering.db_access import recalculate_cluster_member_counts, update_old_clusters_status
 
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,13 @@ def process_new(threshold: float = 0.82) -> None:
     Args:
         threshold: Similarity threshold for cluster matching (default: 0.82)
     """
+    # First, update status of old clusters (older than 5 days)
+    logger.info("Checking for clusters that need status update...")
+    old_clusters_count = update_old_clusters_status()
+    if old_clusters_count > 0:
+        logger.info(f"Updated {old_clusters_count} clusters to 'OLD' status")
+    
+    # Run the main clustering process
     logger.info(f"Starting article clustering workflow with threshold {threshold}")
     run_clustering_process(threshold)
     logger.info("Article clustering workflow completed")
