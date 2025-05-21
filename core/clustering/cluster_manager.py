@@ -62,8 +62,8 @@ class ClusterManager:
         new_centroid = (old_centroid * old_count + new_vector) / (old_count + 1)
         new_count = old_count + 1
         
-        # Update the cluster in the database
-        update_cluster_in_db(cluster_id, new_centroid, new_count)
+        # Update the cluster in the database, setting isContent to False
+        update_cluster_in_db(cluster_id, new_centroid, new_count, isContent=False)
         
         logger.debug(f"Updated cluster {cluster_id} (members {old_count} -> {new_count})")
         return new_centroid, new_count

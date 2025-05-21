@@ -127,21 +127,24 @@ def fetch_existing_clusters() -> List[Tuple[str, np.ndarray, int]]:
     logger.info(f"Found {len(clusters)} clusters")
     return clusters
 
-def update_cluster_in_db(cluster_id: str, new_centroid: np.ndarray, new_count: int) -> None:
+def update_cluster_in_db(cluster_id: str, new_centroid: np.ndarray, new_count: int, isContent: bool = False) -> None:
     """Update a cluster's centroid and member count in the database.
     
     Args:
         cluster_id: The ID of the cluster to update
         new_centroid: The updated centroid vector
         new_count: The updated member count
+        isContent: Whether the cluster has content associated with it
     """
-    sb.table("clusters").update({
+    update_data = {
         "centroid": new_centroid.tolist(),
         "member_count": new_count,
         "updated_at": "now()",
-        "status": "UPDATED"
-    }).eq("cluster_id", cluster_id).execute()
-    logger.debug(f"Updated cluster {cluster_id} in database (members: {new_count})")
+        "status": "UPDATED",
+        "isContent": isContent 
+    }
+    sb.table("clusters").update(update_data).eq("cluster_id", cluster_id).execute()
+    logger.debug(f"Updated cluster {cluster_id} in database (members: {new_count}, isContent: {isContent})")
 
 def create_cluster_in_db(centroid: np.ndarray, member_count: int) -> str:
     """Create a new cluster in the database.
