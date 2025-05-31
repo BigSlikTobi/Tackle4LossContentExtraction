@@ -33,10 +33,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def run_clustering_process(similarity_threshold: float = 0.82) -> None:
-    """Main entry point for the article clustering process.
-    
+    """
+    Main entry point for the article clustering process.
+
+    This function fetches unclustered articles and existing clusters, attempts to match articles to clusters,
+    creates new clusters as needed, and updates the database with new assignments.
+
     Args:
-        similarity_threshold: Minimum similarity score for articles to be considered related
+        similarity_threshold (float): Minimum similarity score for articles to be considered related.
     """
     process_start_time = time.time()
     logger.info(f"Starting article clustering process (threshold={similarity_threshold})")

@@ -1,9 +1,5 @@
-"""Extract content from unprocessed articles using a web crawler and LLM extraction strategy.""
-#         print(f"Content type: {processed_article['content_type']}")
-#         print(f"Content length: {len(processed_article['main_content'])} chars")
-#         print(f"Content type: {processed_article['content_type']}")
-#         print(f"Content length: {len(processed_article['main_content'])} chars")
-# -*- coding: utf-8 -*-
+"""
+Extract content from unprocessed articles using a web crawler and LLM extraction strategy.
 """
 
 import os
@@ -23,6 +19,15 @@ client, model_name = initialize_llm_client(model_type=MODEL_TYPE)
 api_token = os.environ.get("OPENAI_API_KEY")  # Get API key from environment
 
 async def extract_main_content(full_url: str) -> str:
+    """
+    Extract the main content from a web page using a web crawler and LLM extraction strategy.
+
+    Args:
+        full_url (str): The full URL of the article to extract content from.
+
+    Returns:
+        str: The extracted content as a string, or an error message if extraction fails.
+    """
     async with AsyncWebCrawler(verbose=False) as crawler:
         try:
             # Create LLM strategy with text output instead of JSON
@@ -45,7 +50,6 @@ async def extract_main_content(full_url: str) -> str:
                 timeout=40,  # Increased timeout
                 max_retries=3  # Increased retries
             )
-            
             # Add retry logic for API reliability
             max_attempts = 4  # Increased max attempts
             for attempt in range(max_attempts):
@@ -56,7 +60,6 @@ async def extract_main_content(full_url: str) -> str:
                         wait_time = (2 ** attempt) + jitter  # Exponential backoff with jitter
                         print(f"API attempt {attempt+1}/{max_attempts}, waiting {wait_time:.1f} seconds...")
                         await asyncio.sleep(wait_time)
-                    
                     print(f"Attempting extraction (try {attempt+1}/{max_attempts})...")
                     result = await crawler.arun(
                         url=full_url,
@@ -64,7 +67,6 @@ async def extract_main_content(full_url: str) -> str:
                         max_pages=1,
                         cache_mode=CacheMode.WRITE_ONLY,
                     )
-                    
                     content = result.extracted_content
                     if content and len(content) > 50:  # Ensure meaningful content was returned
                         return content
@@ -74,15 +76,12 @@ async def extract_main_content(full_url: str) -> str:
                         if attempt == max_attempts - 1:
                             print(f"Using best available content after all attempts")
                             return content if content else "No content could be extracted"
-                        
                 except Exception as e:
                     error_str = str(e)
                     print(f"API error on attempt {attempt+1}: {error_str}")
-                    
                     # If this is the last attempt, return error info
                     if attempt == max_attempts - 1:
                         return f"Failed to extract content after {max_attempts} attempts. Last error: {error_str}"
-                    
                     # If it's a litellm error, let's try with different parameters
                     if "litellm.APIError" in error_str:
                         # Adjust strategy for next attempt to work around API limitations
@@ -91,18 +90,18 @@ async def extract_main_content(full_url: str) -> str:
                             Keep it simple and return plain text only.
                         """
                         llm_strategy.timeout += 10  # Increase timeout for next attempt
-            
             # If we reach here, all attempts failed
             return "Content extraction failed after multiple attempts"
-            
         except Exception as e:
             print(f"Extraction failed for {full_url}: {str(e)}")
             return f"Extraction failed with error: {str(e)}"
 
 async def main():
+    """
+    Main function to extract content from all unprocessed articles and save results to a JSON file.
+    """
     # Load unprocessed articles
     unprocessed_articles = get_unprocessed_articles()
-
     extracted_contents = {}
     for article in unprocessed_articles:
         article_id = article["id"]
@@ -120,7 +119,6 @@ async def main():
             print(f"[ERROR] Failed to extract content from {article_url}: {e}")
             extracted_content = f"Extraction error: {str(e)}"  # Store error message instead of empty string
         extracted_contents[article_id] = extracted_content
-
     # Store extracted contents
     with open("extracted_contents.json", "w") as f:
         json.dump(extracted_contents, f, indent=2)
