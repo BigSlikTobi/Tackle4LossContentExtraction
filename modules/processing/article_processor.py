@@ -1,3 +1,6 @@
+"""
+Module for processing a single article through extraction, cleaning, embedding, and DB update.
+"""
 import asyncio
 import traceback
 from typing import Dict, Any, Optional
@@ -13,10 +16,10 @@ async def process_article(article: Dict[str, Any]) -> Optional[int]:
     Process a single article through extraction, cleaning, embedding, and DB update.
 
     Args:
-        article: Dictionary containing article information
+        article (Dict[str, Any]): Dictionary containing article information.
 
     Returns:
-        The article ID if processed successfully, None otherwise.
+        Optional[int]: The article ID if processed successfully, None otherwise.
     """
     article_id = article["id"]
     # Normalize URL: use article["url"] if it starts with http; otherwise, prepend "https://www."
