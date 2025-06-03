@@ -20,7 +20,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def process_new(threshold: float = 0.82) -> None:
+def process_new(threshold: float = 0.82, merge_threshold: float = 0.9) -> None:
     """Run the article clustering process with the specified similarity threshold.
     
     This is a clean entry point without any business logic.
@@ -28,6 +28,7 @@ def process_new(threshold: float = 0.82) -> None:
     
     Args:
         threshold: Similarity threshold for cluster matching (default: 0.82)
+        merge_threshold: Threshold for merging similar clusters (default: 0.9)
     """
     # First, update status of old clusters (older than 5 days)
     logger.info("Checking for clusters that need status update...")
@@ -36,8 +37,8 @@ def process_new(threshold: float = 0.82) -> None:
         logger.info(f"Updated {old_clusters_count} clusters to 'OLD' status")
     
     # Run the main clustering process
-    logger.info(f"Starting article clustering workflow with threshold {threshold}")
-    run_clustering_process(threshold)
+    logger.info(f"Starting article clustering workflow with threshold {threshold} and merge threshold {merge_threshold}")
+    run_clustering_process(threshold, merge_threshold)
     logger.info("Article clustering workflow completed")
     
     # Automatically fix any cluster member count discrepancies
