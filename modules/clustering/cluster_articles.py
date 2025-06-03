@@ -32,7 +32,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def run_clustering_process(similarity_threshold: float = 0.82) -> None:
+def run_clustering_process(similarity_threshold: float = 0.82, merge_threshold: float = 0.9) -> None:
     """
     Main entry point for the article clustering process.
 
@@ -41,9 +41,10 @@ def run_clustering_process(similarity_threshold: float = 0.82) -> None:
 
     Args:
         similarity_threshold (float): Minimum similarity score for articles to be considered related.
+        merge_threshold (float): Threshold for merging similar clusters (should be higher than similarity_threshold).
     """
     process_start_time = time.time()
-    logger.info(f"Starting article clustering process (threshold={similarity_threshold})")
+    logger.info(f"Starting article clustering process (threshold={similarity_threshold}, merge_threshold={merge_threshold})")
     
     # Initialize the cluster manager
     cluster_manager = ClusterManager(similarity_threshold)
@@ -107,6 +108,22 @@ def run_clustering_process(similarity_threshold: float = 0.82) -> None:
         
         # Step 3: No match found, add to pending list
         cluster_manager.add_to_pending(article_id, article_vec)
+    
+    # Step 4: Check for and merge very similar clusters if we have enough clusters
+    if len(cluster_manager.clusters) >= 2:
+        logger.info("Checking for similar clusters to merge...")
+        merged_count = 0
+        while cluster_manager.check_and_merge_similar_clusters(merge_threshold):
+            merged_count += 1
+            # Limit the number of merge passes to avoid infinite loops
+            if merged_count >= 10:
+                logger.warning("Reached maximum merge iterations (10). Some clusters may still be mergeable.")
+                break
+        
+        if merged_count > 0:
+            logger.info(f"Completed {merged_count} cluster merge operations")
+        else:
+            logger.info("No clusters were similar enough to merge")
     
     process_end_time = time.time()
     logger.info(f"Clustering process completed in {process_end_time - process_start_time:.2f} seconds")

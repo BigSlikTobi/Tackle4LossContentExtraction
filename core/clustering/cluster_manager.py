@@ -116,6 +116,9 @@ class ClusterManager:
             if score > best_score:
                 best_score = score
                 best_match = (cluster_id, centroid, count, score)
+                
+        # Changed from breaking at first successful match to evaluating all clusters
+        # and returning the best matching one above the threshold
         return best_match
 
     def find_best_pending_match(self, 
@@ -171,3 +174,81 @@ class ClusterManager:
         """
         from core.clustering.db_access import update_old_clusters_status
         return update_old_clusters_status()
+
+    def check_and_merge_similar_clusters(self, merge_threshold: float = 0.9) -> bool:
+        """
+        Check if there are any highly similar clusters that should be merged.
+        
+        This method compares all pairs of clusters and merges them if their centroids are very similar.
+        
+        Args:
+            merge_threshold (float): Minimum similarity score for clusters to be considered for merging.
+                                   Should be higher than the regular similarity_threshold.
+        
+        Returns:
+            bool: True if any clusters were merged, False otherwise.
+        """
+        if len(self.clusters) < 2:
+            logger.debug("Not enough clusters to consider merging.")
+            return False
+            
+        merged = False
+        # Make a copy to avoid modifying during iteration
+        clusters_to_check = list(self.clusters)
+        
+        for i, (cluster_id1, centroid1, count1) in enumerate(clusters_to_check):
+            for j, (cluster_id2, centroid2, count2) in enumerate(clusters_to_check[i+1:], i+1):
+                try:
+                    # Compute similarity between cluster centroids
+                    similarity = cosine_similarity(centroid1, centroid2)
+                    
+                    if similarity > merge_threshold:
+                        logger.info(f"Found similar clusters to merge: {cluster_id1} and {cluster_id2} with similarity {similarity:.4f}")
+                        
+                        # Merge the smaller cluster into the larger one for stability
+                        if count1 >= count2:
+                            primary_id, primary_centroid, primary_count = cluster_id1, centroid1, count1
+                            secondary_id = cluster_id2
+                        else:
+                            primary_id, primary_centroid, primary_count = cluster_id2, centroid2, count2
+                            secondary_id = cluster_id1
+                        
+                        # Calculate weighted average of centroids
+                        total_count = primary_count + count2
+                        new_centroid = ((primary_centroid * primary_count) + (centroid2 * count2)) / total_count
+                        
+                        # Update the primary cluster in the database
+                        update_cluster_in_db(primary_id, new_centroid, total_count, isContent=False)
+                        
+                        # Reassign articles from secondary cluster to primary cluster
+                        from core.clustering.db_access import sb
+                        articles_resp = sb.table("SourceArticles").select("id").eq("cluster_id", secondary_id).execute()
+                        for article in articles_resp.data:
+                            assign_article_to_cluster(article["id"], primary_id)
+                        
+                        # Delete the secondary cluster from the database
+                        sb.table("clusters").delete().eq("cluster_id", secondary_id).execute()
+                        
+                        # Update the in-memory clusters list
+                        self.clusters = [(id, centroid, count) for id, centroid, count in self.clusters 
+                                        if id != secondary_id]
+                        
+                        # Update the primary cluster in the in-memory list
+                        self.clusters = [(primary_id if id == primary_id else id, 
+                                       new_centroid if id == primary_id else centroid,
+                                       total_count if id == primary_id else count)
+                                      for id, centroid, count in self.clusters]
+                        
+                        merged = True
+                        logger.info(f"Merged cluster {secondary_id} into {primary_id}. New count: {total_count}")
+                        
+                        # Since we modified the clusters list, break out and restart if needed
+                        break
+                    
+                except Exception as e:
+                    logger.error(f"Error comparing clusters {cluster_id1} and {cluster_id2}: {str(e)}")
+                
+            if merged:
+                break
+                
+        return merged
