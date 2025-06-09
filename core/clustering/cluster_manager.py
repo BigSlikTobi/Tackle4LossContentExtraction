@@ -208,6 +208,7 @@ class ClusterManager:
                         # Merge the smaller cluster into the larger one for stability
                         if count1 >= count2:
                             primary_id, primary_centroid, primary_count = cluster_id1, centroid1, count1
+
                             secondary_id, secondary_centroid, secondary_count = cluster_id2, centroid2, count2
                         else:
                             primary_id, primary_centroid, primary_count = cluster_id2, centroid2, count2
