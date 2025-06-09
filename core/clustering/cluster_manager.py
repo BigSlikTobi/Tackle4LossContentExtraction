@@ -208,14 +208,15 @@ class ClusterManager:
                         # Merge the smaller cluster into the larger one for stability
                         if count1 >= count2:
                             primary_id, primary_centroid, primary_count = cluster_id1, centroid1, count1
-                            secondary_id = cluster_id2
+
+                            secondary_id, secondary_centroid, secondary_count = cluster_id2, centroid2, count2
                         else:
                             primary_id, primary_centroid, primary_count = cluster_id2, centroid2, count2
-                            secondary_id = cluster_id1
+                            secondary_id, secondary_centroid, secondary_count = cluster_id1, centroid1, count1
                         
                         # Calculate weighted average of centroids
-                        total_count = primary_count + count2
-                        new_centroid = ((primary_centroid * primary_count) + (centroid2 * count2)) / total_count
+                        total_count = primary_count + secondary_count
+                        new_centroid = ((primary_centroid * primary_count) + (secondary_centroid * secondary_count)) / total_count
                         
                         # Update the primary cluster in the database
                         update_cluster_in_db(primary_id, new_centroid, total_count, isContent=False)
