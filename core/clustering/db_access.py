@@ -210,6 +210,7 @@ def repair_zero_centroid_clusters() -> List[str]:
             or centroid_array.ndim == 0
             or (centroid_array.ndim == 1 and np.allclose(centroid_array, 0))
         ):
+
             cluster_id = r["cluster_id"]
             articles_resp = (
                 sb.table("SourceArticles")

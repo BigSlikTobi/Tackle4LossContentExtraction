@@ -65,7 +65,6 @@ def test_repair_zero_centroid_clusters(monkeypatch):
     assert count == 2
     assert centroid == [0.5, 0.5, 0.0]
 
-
 def test_repair_null_centroid_clusters(monkeypatch):
     clusters = [
         {"cluster_id": "c1", "centroid": None},
@@ -99,3 +98,4 @@ def test_repair_null_centroid_clusters(monkeypatch):
     assert cid == "c1"
     assert count == 2
     assert centroid == [0.5, 0.5, 0.0]
+
