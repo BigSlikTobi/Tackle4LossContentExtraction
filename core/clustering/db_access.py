@@ -11,7 +11,7 @@ import sys
 import logging
 from typing import Dict, List, Tuple, Optional
 
-from core.clustering.vector_utils import parse_embedding
+from core.clustering.vector_utils import parse_embedding, normalize_vector_dimensions
 
 # Set up logging
 logging.basicConfig(
@@ -134,7 +134,7 @@ def fetch_existing_clusters() -> List[Tuple[str, np.ndarray, int]]:
     return clusters
 
 def update_cluster_in_db(cluster_id: str, new_centroid: np.ndarray, new_count: int, isContent: bool = False) -> None:
-    """Update a cluster's centroid and member count in the database.
+    """Update an existing cluster in the database.
     
     Args:
         cluster_id: The ID of the cluster to update
@@ -142,6 +142,22 @@ def update_cluster_in_db(cluster_id: str, new_centroid: np.ndarray, new_count: i
         new_count: The updated member count
         isContent: Whether the cluster has content associated with it
     """
+    # Check if we need to normalize dimensions for the database
+    # The database expects 768 dimensions, but our model might produce 1536
+    if new_centroid.shape[0] != 768:
+        template_vec = np.zeros(768)
+        try:
+            normalized_centroid, _ = normalize_vector_dimensions(new_centroid, template_vec)
+            logger.info(f"Normalized centroid dimensions from {new_centroid.shape[0]} to {normalized_centroid.shape[0]}")
+            new_centroid = normalized_centroid
+        except ValueError as e:
+            logger.error(f"Failed to normalize centroid dimensions: {e}")
+            # If we can't normalize, just downsample to 768 dimensions
+            if new_centroid.shape[0] > 768:
+                step = new_centroid.shape[0] // 768
+                new_centroid = new_centroid[::step][:768]
+                logger.info(f"Downsampled centroid to 768 dimensions using step {step}")
+    
     update_data = {
         "centroid": new_centroid.tolist(),
         "member_count": new_count,
@@ -160,8 +176,25 @@ def create_cluster_in_db(centroid: np.ndarray, member_count: int) -> str:
         member_count: The initial member count
         
     Returns:
-        The ID of the newly created cluster
+        str: The ID of the newly created cluster
     """
+    # Check if we need to normalize dimensions for the database
+    # The database expects 768 dimensions, but our model might produce 1536
+    if centroid.shape[0] != 768:
+        template_vec = np.zeros(768)
+        try:
+            normalized_centroid, _ = normalize_vector_dimensions(centroid, template_vec)
+            logger.info(f"Normalized centroid dimensions from {centroid.shape[0]} to {normalized_centroid.shape[0]}")
+            centroid = normalized_centroid
+        except ValueError as e:
+            logger.error(f"Failed to normalize centroid dimensions: {e}")
+            # If we can't normalize, just downsample to 768 dimensions
+            if centroid.shape[0] > 768:
+                step = centroid.shape[0] // 768
+                centroid = centroid[::step][:768]
+                logger.info(f"Downsampled centroid to 768 dimensions using step {step}")
+    
+    # Generate a new UUID for the cluster
     cluster_id = str(uuid.uuid4())
     sb.table("clusters").insert({
         "cluster_id": cluster_id,

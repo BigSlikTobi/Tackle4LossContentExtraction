@@ -100,6 +100,7 @@ python cluster_pipeline.py
 ## Customization & Extensibility
 - **Model Selection:** You can configure which LLMs to use for extraction and analysis via environment variables or by editing the code in `core/utils/LLM_init.py`.
 - **Thresholds:** Clustering similarity thresholds can be adjusted in `cluster_pipeline.py` and `modules/clustering/cluster_articles.py`.
+- **Embedding Dimensions:** The system automatically handles dimension normalization between different embedding models. The database expects 768-dimensional vectors, while OpenAI's "text-embedding-3-small" model produces 1536-dimensional vectors. This normalization is handled in `core/clustering/db_access.py`.
 - **Retry/Timeouts:** Extraction and cleaning scripts have built-in retry and timeout logic for robustness.
 
 ## Troubleshooting
