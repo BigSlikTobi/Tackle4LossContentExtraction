@@ -40,19 +40,36 @@ def parse_embedding(embedding_str: str) -> np.ndarray:
         raise ValueError(f"Invalid embedding format: {embedding_str[:50]}...")
 
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
-    """Compute cosine similarity between two vectors of possibly different dimensions.
-    If dimensions don't match, the longer vector is downsampled to match the shorter one.
+    """Compute cosine similarity between two vectors.
+
+    The function is tolerant of empty or zero-dimensional arrays and will simply
+    return ``0.0`` in those cases. If the vectors differ in length by a factor of
+    two, the longer vector is downsampled to match the shorter one. Any other
+    dimensional mismatch results in ``ValueError``.
     """
+
+    a = np.asarray(a)
+    b = np.asarray(b)
+
+    if a.ndim == 0 or b.ndim == 0:
+        logger.warning("One or both vectors are scalar. Returning similarity as 0.0.")
+        return 0.0
+
+    a = a.ravel()
+    b = b.ravel()
+
+    if a.size == 0 or b.size == 0:
+        logger.warning("One or both vectors are empty. Returning similarity as 0.0.")
+        return 0.0
+
     # Handle dimension mismatch
-    if a.shape[0] != b.shape[0]:
-        # If a is twice as long as b, downsample a
-        if a.shape[0] == b.shape[0] * 2:
+    if a.size != b.size:
+        if a.size == b.size * 2:
             a = a[::2]
-        # If b is twice as long as a, downsample b
-        elif b.shape[0] == a.shape[0] * 2:
+        elif b.size == a.size * 2:
             b = b[::2]
         else:
-            raise ValueError(f"Incompatible dimensions: {a.shape[0]} and {b.shape[0]}")
+            raise ValueError(f"Incompatible dimensions: {a.size} and {b.size}")
     
     # Compute norms
     norm_a = np.linalg.norm(a)
