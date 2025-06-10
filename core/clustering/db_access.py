@@ -111,17 +111,23 @@ def fetch_existing_clusters() -> List[Tuple[str, np.ndarray, int]]:
     for r in resp.data:
         cluster_id = r["cluster_id"]
         member_count = r["member_count"]
-        
+
+        centroid = r.get("centroid")
+        if centroid is None:
+            logger.warning(f"Skipping cluster {cluster_id} with NULL centroid")
+            continue
+
         # Handle centroid whether it's a string or list
-        centroid = r["centroid"]
         if isinstance(centroid, str):
-            # Parse string representation of list
             centroid_values = [float(x) for x in centroid.strip('[]').split(',')]
             centroid_array = np.array(centroid_values, dtype=np.float32)
         else:
-            # Already a list
             centroid_array = np.array(centroid, dtype=np.float32)
-            
+
+        if centroid_array.ndim == 0:
+            logger.warning(f"Skipping cluster {cluster_id} with invalid centroid shape")
+            continue
+
         clusters.append((cluster_id, centroid_array, member_count))
     
     logger.info(f"Found {len(clusters)} clusters")
@@ -178,96 +184,145 @@ def assign_article_to_cluster(article_id: int, cluster_id: str) -> None:
     }).eq("id", article_id).execute()
     logger.debug(f"Assigned article {article_id} to cluster {cluster_id}")
 
-def recalculate_cluster_member_counts() -> Dict[str, Tuple[int, int]]:
-    """Recalculate and update all cluster member counts based on actual article assignments.
-    
-    This function:
-    1. Counts how many articles are actually assigned to each cluster in the database
-    2. Updates the member_count field in the clusters table to match the actual count
-    3. Removes clusters with 0 members
-    4. Unlinks articles from clusters with only 1 member and deletes those clusters
-    5. Returns a dictionary with before/after counts for each cluster that had a discrepancy
-    
-    Returns:
-        Dictionary mapping cluster_id to a tuple of (old_count, new_count)
+def repair_zero_centroid_clusters() -> List[str]:
+    """Recalculate centroids for clusters where the stored centroid is all zeros.
+
+    Returns a list of cluster IDs that were updated.
     """
-    logger.info("Recalculating cluster member counts...")
-    
-    # Step 1: Get current counts from clusters table
+    logger.info("Checking for clusters with zero centroid...")
+    resp = sb.table("clusters").select("cluster_id, centroid").execute()
+
+    fixed_clusters: List[str] = []
+
+    for r in resp.data:
+        centroid_raw = r.get("centroid")
+
+        if centroid_raw is None:
+            centroid_array = np.array([])
+        elif isinstance(centroid_raw, str):
+            values = [float(x) for x in centroid_raw.strip('[]').split(',')]
+            centroid_array = np.array(values, dtype=np.float32)
+        else:
+            centroid_array = np.array(centroid_raw, dtype=np.float32)
+
+        if (
+            centroid_raw is None
+            or centroid_array.ndim == 0
+            or (centroid_array.ndim == 1 and np.allclose(centroid_array, 0))
+        ):
+            cluster_id = r["cluster_id"]
+            articles_resp = (
+                sb.table("SourceArticles")
+                .select("id, ArticleVector!inner(embedding)")
+                .eq("cluster_id", cluster_id)
+                .execute()
+            )
+
+            embeddings: List[np.ndarray] = []
+            for art in articles_resp.data:
+                if not art.get("ArticleVector"):
+                    continue
+                emb_str = art["ArticleVector"][0]["embedding"]
+                try:
+                    embeddings.append(parse_embedding(emb_str))
+                except ValueError:
+                    logger.warning(
+                        f"Skipping invalid embedding for article {art.get('id')} in cluster {cluster_id}"
+                    )
+
+            if embeddings:
+                new_centroid = np.mean(np.vstack(embeddings), axis=0)
+                update_cluster_in_db(cluster_id, new_centroid, len(embeddings), isContent=False)
+                fixed_clusters.append(cluster_id)
+                logger.info(f"Recalculated centroid for cluster {cluster_id}")
+            else:
+                logger.warning(
+                    f"Cluster {cluster_id} has zero centroid but no valid embeddings were found"
+                )
+
+    if fixed_clusters:
+        logger.info(f"Fixed centroids for {len(fixed_clusters)} clusters")
+    else:
+        logger.info("No zero centroid clusters found")
+
+    return fixed_clusters
+
+def recalculate_cluster_member_counts() -> Dict[str, Tuple[int, int]]:
+    """Efficiently validate and correct cluster member counts.
+
+    The previous implementation queried each cluster individually which was
+    extremely chatty with the database. This version fetches all article
+    assignments in a single request and then performs batched updates and
+    deletions.  It returns a dictionary mapping the cluster ID to a tuple of
+    ``(old_count, new_count)`` for every cluster whose count changed.
+    """
+
+    logger.info("Recalculating cluster member counts (batch mode)...")
+
+    # Fetch current cluster counts
     clusters_resp = sb.table("clusters").select("cluster_id, member_count").execute()
     current_counts = {r["cluster_id"]: r["member_count"] for r in clusters_resp.data}
-    
-    # Step 2: Count actual articles per cluster and keep track of article IDs
-    actual_counts = {}
-    cluster_articles = {}  # To store article IDs for each cluster
-    
-    for cluster_id in current_counts.keys():
-        articles_resp = sb.table("SourceArticles").select("id").eq("cluster_id", cluster_id).execute()
-        article_ids = [r["id"] for r in articles_resp.data]
-        actual_count = len(article_ids)
-        actual_counts[cluster_id] = actual_count
-        cluster_articles[cluster_id] = article_ids
-    
-    # Step 3: Find and fix discrepancies
-    discrepancies = {}
-    for cluster_id, current_count in current_counts.items():
-        actual_count = actual_counts.get(cluster_id, 0)
-        
-        if current_count != actual_count:
-            # Record the discrepancy
-            discrepancies[cluster_id] = (current_count, actual_count)
-            
-            if actual_count >= 2:
-                # Normal case: Update the cluster count
-                sb.table("clusters").update({
-                    "member_count": actual_count,
-                    "updated_at": "now()"
-                }).eq("cluster_id", cluster_id).execute()
-                logger.info(f"Updated cluster {cluster_id} member count: {current_count} → {actual_count}")
-    
-    # Step 4: Handle special cases - empty clusters and single-member clusters
-    empty_clusters = []
-    single_member_clusters = {}
-    
-    for cluster_id, actual_count in actual_counts.items():
-        if actual_count == 0:
-            # Case 1: Empty cluster - delete it
-            empty_clusters.append(cluster_id)
-        elif actual_count == 1:
-            # Case 2: Single-member cluster - remember article ID for unlinking
-            single_member_clusters[cluster_id] = cluster_articles[cluster_id][0]
-    
-    # Step 5: Delete empty clusters
+
+    # Fetch all article assignments in one request
+    articles_resp = (
+        sb.table("SourceArticles")
+        .select("id, cluster_id")
+        .not_.is_("cluster_id", None)
+        .execute()
+    )
+
+    cluster_articles: Dict[str, List[int]] = {}
+    for row in articles_resp.data:
+        cid = row["cluster_id"]
+        cluster_articles.setdefault(cid, []).append(row["id"])
+
+    actual_counts = {cid: len(ids) for cid, ids in cluster_articles.items()}
+
+    discrepancies: Dict[str, Tuple[int, int]] = {}
+    updates: List[Dict[str, object]] = []
+    empty_clusters: List[str] = []
+    single_member_clusters: Dict[str, int] = {}
+
+    all_cluster_ids = set(current_counts.keys()) | set(actual_counts.keys())
+
+    for cid in all_cluster_ids:
+        actual = actual_counts.get(cid, 0)
+        old = current_counts.get(cid, 0)
+
+        if old != actual:
+            discrepancies[cid] = (old, actual)
+
+        if actual >= 2:
+            if actual != old:
+                updates.append({
+                    "cluster_id": cid,
+                    "member_count": actual,
+                    "updated_at": "now()",
+                })
+        elif actual == 1:
+            single_member_clusters[cid] = cluster_articles[cid][0]
+        else:
+            empty_clusters.append(cid)
+
+    if updates:
+        sb.table("clusters").upsert(updates, on_conflict="cluster_id").execute()
+        logger.info(f"Updated member counts for {len(updates)} clusters")
+
     if empty_clusters:
-        for cluster_id in empty_clusters:
-            sb.table("clusters").delete().eq("cluster_id", cluster_id).execute()
-            logger.info(f"Deleted empty cluster: {cluster_id}")
-    
-    # Step 6: Unlink articles from single-member clusters and delete those clusters
+        sb.table("clusters").delete().in_("cluster_id", empty_clusters).execute()
+        logger.info(f"Deleted {len(empty_clusters)} empty clusters")
+
     if single_member_clusters:
-        for cluster_id, article_id in single_member_clusters.items():
-            # Unlink article from cluster
-            sb.table("SourceArticles").update({
-                "cluster_id": None
-            }).eq("id", article_id).execute()
-            logger.info(f"Unlinked article {article_id} from single-member cluster {cluster_id}")
-            
-            # Delete the cluster
-            sb.table("clusters").delete().eq("cluster_id", cluster_id).execute()
-            logger.info(f"Deleted single-member cluster: {cluster_id}")
-    
-    # Log summary
-    total_fixed = len(discrepancies)
-    deleted_clusters = len(empty_clusters) + len(single_member_clusters)
-    
-    if total_fixed > 0:
-        logger.info(f"Fixed {total_fixed} cluster member count discrepancies")
+        article_ids = list(single_member_clusters.values())
+        sb.table("SourceArticles").update({"cluster_id": None}).in_("id", article_ids).execute()
+        sb.table("clusters").delete().in_("cluster_id", list(single_member_clusters.keys())).execute()
+        logger.info(f"Removed {len(single_member_clusters)} single-member clusters")
+
+    if discrepancies:
+        logger.info(f"Fixed {len(discrepancies)} cluster member count discrepancies")
     else:
         logger.info("All cluster member counts are accurate")
-        
-    if deleted_clusters > 0:
-        logger.info(f"Deleted {deleted_clusters} clusters ({len(empty_clusters)} empty, {len(single_member_clusters)} single-member)")
-    
+
     return discrepancies
 
 def update_old_clusters_status() -> int:
