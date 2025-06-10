@@ -178,6 +178,62 @@ def assign_article_to_cluster(article_id: int, cluster_id: str) -> None:
     }).eq("id", article_id).execute()
     logger.debug(f"Assigned article {article_id} to cluster {cluster_id}")
 
+def repair_zero_centroid_clusters() -> List[str]:
+    """Recalculate centroids for clusters where the stored centroid is all zeros.
+
+    Returns a list of cluster IDs that were updated.
+    """
+    logger.info("Checking for clusters with zero centroid...")
+    resp = sb.table("clusters").select("cluster_id, centroid").execute()
+
+    fixed_clusters: List[str] = []
+
+    for r in resp.data:
+        centroid = r["centroid"]
+        if isinstance(centroid, str):
+            values = [float(x) for x in centroid.strip('[]').split(',')]
+            centroid_array = np.array(values, dtype=np.float32)
+        else:
+            centroid_array = np.array(centroid, dtype=np.float32)
+
+        if centroid_array.ndim == 1 and np.allclose(centroid_array, 0):
+            cluster_id = r["cluster_id"]
+            articles_resp = (
+                sb.table("SourceArticles")
+                .select("id, ArticleVector!inner(embedding)")
+                .eq("cluster_id", cluster_id)
+                .execute()
+            )
+
+            embeddings: List[np.ndarray] = []
+            for art in articles_resp.data:
+                if not art.get("ArticleVector"):
+                    continue
+                emb_str = art["ArticleVector"][0]["embedding"]
+                try:
+                    embeddings.append(parse_embedding(emb_str))
+                except ValueError:
+                    logger.warning(
+                        f"Skipping invalid embedding for article {art.get('id')} in cluster {cluster_id}"
+                    )
+
+            if embeddings:
+                new_centroid = np.mean(np.vstack(embeddings), axis=0)
+                update_cluster_in_db(cluster_id, new_centroid, len(embeddings), isContent=False)
+                fixed_clusters.append(cluster_id)
+                logger.info(f"Recalculated centroid for cluster {cluster_id}")
+            else:
+                logger.warning(
+                    f"Cluster {cluster_id} has zero centroid but no valid embeddings were found"
+                )
+
+    if fixed_clusters:
+        logger.info(f"Fixed centroids for {len(fixed_clusters)} clusters")
+    else:
+        logger.info("No zero centroid clusters found")
+
+    return fixed_clusters
+
 def recalculate_cluster_member_counts() -> Dict[str, Tuple[int, int]]:
     """Efficiently validate and correct cluster member counts.
 
