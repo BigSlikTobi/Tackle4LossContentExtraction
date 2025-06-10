@@ -91,9 +91,10 @@ class ClusterManager:
             raise ValueError("Cannot create a cluster with no vectors")
         # Stack vectors and calculate mean
         centroid = np.mean(np.vstack(vectors), axis=0)
-        # Downsample if 1536 -> 768 dims (common when dealing with different embedding models)
-        if centroid.shape[0] == 1536:
-            centroid = centroid[::2]
+        
+        # Dimension normalization will now be handled in create_cluster_in_db
+        # No need to manually downsample here, keeping the full dimensions for accuracy
+        
         # Create the cluster in the database
         cluster_id = create_cluster_in_db(centroid, len(vectors))
         return cluster_id, centroid, len(vectors)
