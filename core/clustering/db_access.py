@@ -111,17 +111,23 @@ def fetch_existing_clusters() -> List[Tuple[str, np.ndarray, int]]:
     for r in resp.data:
         cluster_id = r["cluster_id"]
         member_count = r["member_count"]
-        
+
+        centroid = r.get("centroid")
+        if centroid is None:
+            logger.warning(f"Skipping cluster {cluster_id} with NULL centroid")
+            continue
+
         # Handle centroid whether it's a string or list
-        centroid = r["centroid"]
         if isinstance(centroid, str):
-            # Parse string representation of list
             centroid_values = [float(x) for x in centroid.strip('[]').split(',')]
             centroid_array = np.array(centroid_values, dtype=np.float32)
         else:
-            # Already a list
             centroid_array = np.array(centroid, dtype=np.float32)
-            
+
+        if centroid_array.ndim == 0:
+            logger.warning(f"Skipping cluster {cluster_id} with invalid centroid shape")
+            continue
+
         clusters.append((cluster_id, centroid_array, member_count))
     
     logger.info(f"Found {len(clusters)} clusters")
@@ -189,14 +195,22 @@ def repair_zero_centroid_clusters() -> List[str]:
     fixed_clusters: List[str] = []
 
     for r in resp.data:
-        centroid = r["centroid"]
-        if isinstance(centroid, str):
-            values = [float(x) for x in centroid.strip('[]').split(',')]
+        centroid_raw = r.get("centroid")
+
+        if centroid_raw is None:
+            centroid_array = np.array([])
+        elif isinstance(centroid_raw, str):
+            values = [float(x) for x in centroid_raw.strip('[]').split(',')]
             centroid_array = np.array(values, dtype=np.float32)
         else:
-            centroid_array = np.array(centroid, dtype=np.float32)
+            centroid_array = np.array(centroid_raw, dtype=np.float32)
 
-        if centroid_array.ndim == 1 and np.allclose(centroid_array, 0):
+        if (
+            centroid_raw is None
+            or centroid_array.ndim == 0
+            or (centroid_array.ndim == 1 and np.allclose(centroid_array, 0))
+        ):
+
             cluster_id = r["cluster_id"]
             articles_resp = (
                 sb.table("SourceArticles")
