@@ -12,9 +12,13 @@ from core.clustering.vector_utils import parse_embedding
     ],
 )
 def test_parse_embedding(input_str, expected):
-    if isinstance(expected, pytest.raises):
-        with expected:
-            parse_embedding(input_str)
-    else:
+    """Ensure ``parse_embedding`` parses valid strings and raises errors for
+    invalid input."""
+
+    # ``expected`` is either a numpy array or a ``pytest.raises`` context
+    if isinstance(expected, np.ndarray):
         emb = parse_embedding(input_str)
         assert np.allclose(emb, expected)
+    else:
+        with expected:
+            parse_embedding(input_str)
