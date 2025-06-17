@@ -19,4 +19,4 @@ def test_normalize_embedding_unit_vector():
 
 def test_normalize_embedding_zero_vector():
     result = ce.normalize_embedding([0, 0])
-    assert result == [0, 0]
+    assert np.allclose(result, np.array([0, 0]))
