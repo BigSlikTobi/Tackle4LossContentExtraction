@@ -103,6 +103,13 @@ python cluster_pipeline.py
 - **Embedding Dimensions:** The system automatically handles dimension normalization between different embedding models. The database expects 768-dimensional vectors, while OpenAI's "text-embedding-3-small" model produces 1536-dimensional vectors. This normalization is handled in `core/clustering/db_access.py`.
 - **Retry/Timeouts:** Extraction and cleaning scripts have built-in retry and timeout logic for robustness.
 
+## Testing
+Run the test suite with `pytest`:
+
+```bash
+pytest -q
+```
+
 ## Troubleshooting
 - Ensure all required environment variables are set and valid.
 - Check that Playwright browsers are installed if extraction fails.
