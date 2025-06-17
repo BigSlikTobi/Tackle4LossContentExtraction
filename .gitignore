@@ -35,3 +35,6 @@ htmlcov/
 .cache
 coverage.xml
 *.cover
+
+# macOS specific files
+.DS_Store
