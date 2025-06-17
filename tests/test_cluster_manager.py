@@ -115,7 +115,7 @@ def test_check_and_merge_similar_clusters(monkeypatch):
     updates = []
     monkeypatch.setattr(cm_mod, "update_cluster_in_db", lambda cid, cent, cnt, isContent=False: updates.append((cid, cent, cnt)))
     assignments = []
-    monkeypatch.setattr(cm_mod, "assign_article_to_cluster", lambda aid, cid: assignments.append((aid, cid)))
+    monkeypatch.setattr(cm_mod, "batch_assign_articles_to_cluster", lambda assigns: assignments.extend(assigns))
 
     manager = cm_mod.ClusterManager(check_old_clusters=False)
     manager.clusters = [

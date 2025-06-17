@@ -37,16 +37,16 @@ def test_run_clustering_process_creates_cluster(monkeypatch):
         return "clusterX"
 
     assignments = []
-    def fake_assign(article_id, cluster_id):
-        assignments.append((article_id, cluster_id))
+    def fake_batch(assignments_list):
+        assignments.extend(assignments_list)
 
     monkeypatch.setattr(db_access, "create_cluster_in_db", fake_create_cluster_in_db)
-    monkeypatch.setattr(db_access, "assign_article_to_cluster", fake_assign)
+    monkeypatch.setattr(db_access, "batch_assign_articles_to_cluster", fake_batch)
     monkeypatch.setattr(db_access, "update_cluster_in_db", lambda cid, c, n, isContent=False: None)
-    monkeypatch.setattr(cluster_articles, "assign_article_to_cluster", fake_assign)
+    monkeypatch.setattr(cluster_articles, "batch_assign_articles_to_cluster", fake_batch)
 
     monkeypatch.setattr(cluster_manager, "create_cluster_in_db", fake_create_cluster_in_db)
-    monkeypatch.setattr(cluster_manager, "assign_article_to_cluster", fake_assign)
+    monkeypatch.setattr(cluster_manager, "batch_assign_articles_to_cluster", fake_batch)
     monkeypatch.setattr(cluster_manager, "update_cluster_in_db", lambda cid, c, n, isContent=False: None)
 
     cluster_articles.run_clustering_process(similarity_threshold=0.8, merge_threshold=0.9)
