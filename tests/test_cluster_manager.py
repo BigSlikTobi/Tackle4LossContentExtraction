@@ -4,15 +4,13 @@ import sys
 from types import SimpleNamespace
 from unittest import mock
 import numpy as np
+import pytest
 
 # Ensure modules can be reloaded with patched dependencies
 @pytest.fixture(autouse=True)
 def _prepend_parent_dir_to_syspath(monkeypatch):
     parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     monkeypatch.syspath_prepend(parent_dir)
-
-
-import pytest
 
 
 @pytest.fixture(autouse=True)
