@@ -217,6 +217,20 @@ def assign_article_to_cluster(article_id: int, cluster_id: str) -> None:
     }).eq("id", article_id).execute()
     logger.debug(f"Assigned article {article_id} to cluster {cluster_id}")
 
+def batch_assign_articles_to_cluster(assignments: List[Tuple[int, str]]) -> None:
+    """Assign multiple articles to clusters in a single database call.
+
+    Args:
+        assignments: A list of ``(article_id, cluster_id)`` tuples.
+    """
+    if not assignments:
+        return
+    update_rows = [
+        {"id": aid, "cluster_id": cid} for aid, cid in assignments
+    ]
+    sb.table("SourceArticles").upsert(update_rows, on_conflict="id").execute()
+    logger.debug(f"Batch assigned {len(assignments)} articles to clusters")
+
 def repair_zero_centroid_clusters() -> List[str]:
     """Recalculate centroids for clusters where the stored centroid is all zeros.
 

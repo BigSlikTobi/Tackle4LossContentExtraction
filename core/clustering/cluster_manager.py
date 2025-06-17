@@ -8,9 +8,9 @@ from typing import Dict, List, Tuple, Optional
 
 from core.clustering.vector_utils import cosine_similarity, normalize_vector_dimensions
 from core.clustering.db_access import (
-    update_cluster_in_db, 
-    create_cluster_in_db, 
-    assign_article_to_cluster
+    update_cluster_in_db,
+    create_cluster_in_db,
+    batch_assign_articles_to_cluster
 )
 
 # Set up logging
@@ -222,11 +222,11 @@ class ClusterManager:
                         # Update the primary cluster in the database
                         update_cluster_in_db(primary_id, new_centroid, total_count, isContent=False)
                         
-                        # Reassign articles from secondary cluster to primary cluster
+                        # Reassign articles from secondary cluster to primary cluster in batch
                         from core.clustering.db_access import sb
                         articles_resp = sb.table("SourceArticles").select("id").eq("cluster_id", secondary_id).execute()
-                        for article in articles_resp.data:
-                            assign_article_to_cluster(article["id"], primary_id)
+                        sec_ids = [a["id"] for a in articles_resp.data]
+                        batch_assign_articles_to_cluster([(aid, primary_id) for aid in sec_ids])
                         
                         # Delete the secondary cluster from the database
                         sb.table("clusters").delete().eq("cluster_id", secondary_id).execute()

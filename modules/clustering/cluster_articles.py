@@ -19,9 +19,9 @@ from typing import Dict, List, Tuple
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from core.clustering.db_access import (
-    fetch_unclustered_articles, 
-    fetch_existing_clusters, 
-    assign_article_to_cluster
+    fetch_unclustered_articles,
+    fetch_existing_clusters,
+    batch_assign_articles_to_cluster
 )
 from core.clustering.cluster_manager import ClusterManager
 
@@ -58,7 +58,9 @@ def run_clustering_process(similarity_threshold: float = 0.82, merge_threshold: 
         return
     
     logger.info(f"Processing {len(unclustered_articles)} unclustered articles")
-    
+
+    assignments: List[Tuple[int, str]] = []
+
     # Process each article
     for article_id, article_vec in unclustered_articles:
         # Step 1: Try to match with existing clusters
@@ -73,8 +75,8 @@ def run_clustering_process(similarity_threshold: float = 0.82, merge_threshold: 
                 cluster_id, centroid, count, article_vec
             )
             
-            # Assign the article to the cluster
-            assign_article_to_cluster(article_id, cluster_id)
+            # Record the assignment for batch update
+            assignments.append((article_id, cluster_id))
             
             # Update the in-memory cluster list
             cluster_manager.clusters = [
@@ -95,9 +97,11 @@ def run_clustering_process(similarity_threshold: float = 0.82, merge_threshold: 
                 [pending_vec, article_vec]
             )
             
-            # Assign both articles to the new cluster
-            assign_article_to_cluster(pending_id, cluster_id)
-            assign_article_to_cluster(article_id, cluster_id)
+            # Record the assignments for batch update
+            assignments.extend([
+                (pending_id, cluster_id),
+                (article_id, cluster_id)
+            ])
             
             # Remove the pending article
             cluster_manager.remove_from_pending(pending_id)
@@ -125,6 +129,9 @@ def run_clustering_process(similarity_threshold: float = 0.82, merge_threshold: 
         else:
             logger.info("No clusters were similar enough to merge")
     
+    if assignments:
+        batch_assign_articles_to_cluster(assignments)
+
     process_end_time = time.time()
     logger.info(f"Clustering process completed in {process_end_time - process_start_time:.2f} seconds")
     logger.info(f"Processed {len(unclustered_articles)} articles, {len(cluster_manager.pending_articles)} remain pending")
