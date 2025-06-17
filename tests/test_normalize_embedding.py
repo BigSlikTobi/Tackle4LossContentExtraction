@@ -1,6 +1,8 @@
 import os
+import sys
 import numpy as np
 import importlib
+from types import ModuleType
 from unittest import mock
 import pytest
 
@@ -10,8 +12,13 @@ os.environ.setdefault("OPENAI_API_KEY", "testkey")
 
 @pytest.fixture
 def ce_fixture():
-    with mock.patch("supabase.create_client", return_value=mock.Mock()), \
-         mock.patch("openai.OpenAI", return_value=mock.Mock()):
+    supabase_mock = ModuleType("supabase")
+    supabase_mock.create_client = mock.Mock(return_value=mock.Mock())
+    supabase_mock.Client = mock.Mock()
+    openai_mock = ModuleType("openai")
+    openai_mock.OpenAI = mock.Mock(return_value=mock.Mock())
+
+    with mock.patch.dict(sys.modules, {"supabase": supabase_mock, "openai": openai_mock}):
         ce = importlib.import_module("core.utils.create_embeddings")
         yield ce
 
