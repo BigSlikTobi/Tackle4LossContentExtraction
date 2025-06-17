@@ -3,16 +3,18 @@ import pytest
 from core.clustering.vector_utils import parse_embedding
 
 
-def test_parse_embedding_brackets():
-    emb = parse_embedding("[1.0, 2.0, 3.0]")
-    assert np.allclose(emb, np.array([1.0, 2.0, 3.0], dtype=np.float32))
-
-
-def test_parse_embedding_spaces():
-    emb = parse_embedding("1.0 2.0 3.0")
-    assert np.allclose(emb, np.array([1.0, 2.0, 3.0], dtype=np.float32))
-
-
-def test_parse_embedding_invalid():
-    with pytest.raises(ValueError):
-        parse_embedding("foo, bar")
+@pytest.mark.parametrize(
+    "input_str, expected",
+    [
+        ("[1.0, 2.0, 3.0]", np.array([1.0, 2.0, 3.0], dtype=np.float32)),
+        ("1.0 2.0 3.0", np.array([1.0, 2.0, 3.0], dtype=np.float32)),
+        pytest.param("foo, bar", pytest.raises(ValueError), id="invalid_input"),
+    ],
+)
+def test_parse_embedding(input_str, expected):
+    if isinstance(expected, pytest.raises):
+        with expected:
+            parse_embedding(input_str)
+    else:
+        emb = parse_embedding(input_str)
+        assert np.allclose(emb, expected)
