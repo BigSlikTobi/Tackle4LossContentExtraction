@@ -379,6 +379,10 @@ def update_old_clusters_status() -> int:
     Returns:
         Number of clusters updated to OLD status
     """
+    # Ensure Supabase client is initialized, else abort with error
+    if sb is None:
+        logger.error("Supabase client is not initialized. Cannot perform update_old_clusters_status operation.")
+        raise RuntimeError("Supabase client is not initialized. Aborting cluster status update.")
     logger.info("Checking for clusters that haven't been updated in 3 days...")
     
     # Fetch clusters that aren't already marked as OLD
