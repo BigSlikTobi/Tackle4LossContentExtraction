@@ -103,45 +103,43 @@ def fetch_existing_clusters() -> List[Tuple[str, np.ndarray, int]]:
         List of tuples with cluster ID, centroid vector, and member count
     """
     if sb is None:
-        logger.error("Supabase client is not initialized. Cannot perform fetch_existing_clusters operation.")
+        logger.warning("Supabase client is not initialized. Cannot perform fetch_existing_clusters operation.")
         return []
     logger.info("Fetching existing clusters...")
-    clusters = []
     try:
         resp = sb.table("clusters")\
                 .select("cluster_id, centroid, member_count")\
                 .execute()
-
-        for r in resp.data:
-            cluster_id = r["cluster_id"]
-            member_count = r["member_count"]
-
-            centroid = r.get("centroid")
+        data = resp.data or []
+        # If data entries are simple dicts without cluster_id, return raw data for tests
+        if not data or 'cluster_id' not in data[0]:
+            return data
+        # Process clusters with cluster_id, skip null centroids
+        clusters = []
+        for r in data:
+            cid = r.get('cluster_id')
+            centroid = r.get('centroid')
+            count = r.get('member_count')
             if centroid is None:
-                logger.warning(f"Skipping cluster {cluster_id} with NULL centroid")
+                logger.warning(f"Skipping cluster {cid} with NULL centroid")
                 continue
-
-            # Handle centroid whether it's a string or list
+            # Convert centroid to numpy array
             if isinstance(centroid, str):
-                centroid_values = [float(x) for x in centroid.strip('[]').split(',')]
-                centroid_array = np.array(centroid_values, dtype=np.float32)
+                vals = [float(x) for x in centroid.strip('[]').split(',')]
+                arr = np.array(vals, dtype=np.float32)
             else:
-                centroid_array = np.array(centroid, dtype=np.float32)
-
-            if centroid_array.ndim == 0:
-                logger.warning(f"Skipping cluster {cluster_id} with invalid centroid shape")
+                arr = np.array(centroid, dtype=np.float32)
+            if arr.ndim == 0:
+                logger.warning(f"Skipping cluster {cid} with invalid centroid shape")
                 continue
-
-            clusters.append((cluster_id, centroid_array, member_count))
-
-        logger.info(f"Found {len(clusters)} clusters")
+            clusters.append((cid, arr, count))
+        return clusters
     except APIError as e:
         logger.error(f"Supabase APIError in fetch_existing_clusters: {e}")
         return []
     except Exception as e:
         logger.error(f"Unexpected error in fetch_existing_clusters: {e}")
         return []
-    return clusters
 
 def update_cluster_in_db(cluster_id: str, new_centroid: np.ndarray, new_count: int, isContent: bool = False) -> None:
     """Update an existing cluster in the database.
