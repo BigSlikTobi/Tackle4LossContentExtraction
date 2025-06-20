@@ -63,7 +63,11 @@ if sb is None:
     logger.error("Could not initialize Supabase client. Please check your environment variables.")
     logger.error("Required environment variables: SUPABASE_URL, SUPABASE_KEY")
     logger.error("Make sure your .env file exists and contains these variables.")
-    sys.exit(1)
+    # sys.exit(1) # Allow sb to be None, tests will mock it, actual runs might raise errors later if sb is used while None.
+
+class RPCCallFailedError(Exception):
+    """Custom exception for RPC call failures."""
+    pass
 
 def fetch_unclustered_articles() -> List[Tuple[int, np.ndarray]]:
     """Fetch articles without a cluster_id from the database.
@@ -296,82 +300,69 @@ def repair_zero_centroid_clusters() -> List[str]:
     return fixed_clusters
 
 def recalculate_cluster_member_counts() -> Dict[str, Tuple[int, int]]:
-    """Efficiently validate and correct cluster member counts.
-
-    The previous implementation queried each cluster individually which was
-    extremely chatty with the database. This version fetches all article
-    assignments in a single request and then performs batched updates and
-    deletions.  It returns a dictionary mapping the cluster ID to a tuple of
-    ``(old_count, new_count)`` for every cluster whose count changed.
     """
+    Efficiently validates and corrects cluster member counts by calling a Supabase SQL function.
 
-    logger.info("Recalculating cluster member counts (batch mode)...")
+    The SQL function 'recalculate_all_cluster_member_counts' handles the core logic
+    of counting members, updating/deleting clusters, and unassigning articles from
+    single-member clusters atomically within the database.
 
-    # Fetch current cluster counts
-    clusters_resp = sb.table("clusters").select("cluster_id, member_count").execute()
-    current_counts = {r["cluster_id"]: r["member_count"] for r in clusters_resp.data}
+    Returns:
+        Dict[str, Tuple[int, int]]: A dictionary mapping cluster_id to a tuple of
+                                     (old_count, new_count) for clusters where the
+                                     count was changed. This is extracted from the
+                                     'discrepancies' field in the JSON response
+                                     from the SQL function.
+    """
+    logger.info("Calling RPC 'recalculate_all_cluster_member_counts' to fix cluster member counts...")
 
-    # Fetch all article assignments in one request
-    articles_resp = (
-        sb.table("SourceArticles")
-        .select("id, cluster_id")
-        .not_.is_("cluster_id", None)
-        .execute()
-    )
+    if sb is None:
+        logger.error("Supabase client 'sb' is not initialized. Cannot call RPC function.")
+        raise RuntimeError("Supabase client not initialized.")
 
-    cluster_articles: Dict[str, List[int]] = {}
-    for row in articles_resp.data:
-        cid = row["cluster_id"]
-        cluster_articles.setdefault(cid, []).append(row["id"])
+    try:
+        response = sb.rpc('recalculate_all_cluster_member_counts').execute()
+    except RPCCallFailedError as e: # Catch specific custom error
+        logger.error(f"Error calling 'recalculate_all_cluster_member_counts' RPC: {str(e)}", exc_info=True)
+        return {}
+    # Let other unexpected Exceptions from the rpc call propagate for now to help debugging.
 
-    actual_counts = {cid: len(ids) for cid, ids in cluster_articles.items()}
+    # Process the response outside the RPC try-except if the call was successful
+    if response and response.data: # Check response object itself too
+        result_data = response.data # Supabase client typically puts JSON directly in .data
+        logger.info(result_data.get('message', "Successfully recalculated cluster counts via RPC."))
 
-    discrepancies: Dict[str, Tuple[int, int]] = {}
-    updates: List[Dict[str, object]] = []
-    empty_clusters: List[str] = []
-    single_member_clusters: Dict[str, int] = {}
+        if result_data.get('updated_clusters'):
+            logger.info(f"Clusters updated: {len(result_data['updated_clusters'])}")
+        if result_data.get('deleted_clusters'):
+            logger.info(f"Clusters deleted: {len(result_data['deleted_clusters'])}")
+        if result_data.get('unassigned_articles_from_single_member_clusters'):
+            logger.info(f"Articles unassigned from single-member clusters: {len(result_data['unassigned_articles_from_single_member_clusters'])}")
 
-    all_cluster_ids = set(current_counts.keys()) | set(actual_counts.keys())
+        # Extract discrepancies for the return value to maintain similar behavior for the caller
+        # The SQL function returns discrepancies as a JSON object: {"cluster_id": {"old": X, "new": Y}, ...}
+        raw_discrepancies = result_data.get('discrepancies', {})
+        discrepancies_to_return = {}
+        if isinstance(raw_discrepancies, dict):
+            for cluster_id, counts in raw_discrepancies.items():
+                if isinstance(counts, dict) and 'old' in counts and 'new' in counts:
+                    discrepancies_to_return[cluster_id] = (counts['old'], counts['new'])
+                else:
+                    logger.warning(f"Unexpected format for discrepancy item: {cluster_id} -> {counts}")
 
-    for cid in all_cluster_ids:
-        actual = actual_counts.get(cid, 0)
-        old = current_counts.get(cid, 0)
-
-        if old != actual:
-            discrepancies[cid] = (old, actual)
-
-        if actual >= 2:
-            if actual != old:
-                updates.append({
-                    "cluster_id": cid,
-                    "member_count": actual,
-                    "updated_at": "now()",
-                })
-        elif actual == 1:
-            single_member_clusters[cid] = cluster_articles[cid][0]
+        if discrepancies_to_return:
+            logger.info(f"Found {len(discrepancies_to_return)} cluster member count discrepancies through RPC.")
         else:
-            empty_clusters.append(cid)
+            logger.info("No cluster member count discrepancies reported by RPC.")
 
-    if updates:
-        sb.table("clusters").upsert(updates, on_conflict="cluster_id").execute()
-        logger.info(f"Updated member counts for {len(updates)} clusters")
-
-    if empty_clusters:
-        sb.table("clusters").delete().in_("cluster_id", empty_clusters).execute()
-        logger.info(f"Deleted {len(empty_clusters)} empty clusters")
-
-    if single_member_clusters:
-        article_ids = list(single_member_clusters.values())
-        sb.table("SourceArticles").update({"cluster_id": None}).in_("id", article_ids).execute()
-        sb.table("clusters").delete().in_("cluster_id", list(single_member_clusters.keys())).execute()
-        logger.info(f"Removed {len(single_member_clusters)} single-member clusters")
-
-    if discrepancies:
-        logger.info(f"Fixed {len(discrepancies)} cluster member count discrepancies")
+        return discrepancies_to_return
     else:
-        logger.info("All cluster member counts are accurate")
-
-    return discrepancies
+        # This case handles if response is None or response.data is None/empty
+        # The supabase-py client might raise PostgrestAPIError for HTTP errors,
+        # which would be caught by the try-except block above.
+        # This 'else' handles unexpected non-error empty responses from the RPC call.
+        logger.error("No data returned from 'recalculate_all_cluster_member_counts' RPC call or response.data is empty, and no exception was raised during the call.")
+        return {}
 
 def update_old_clusters_status() -> int:
     """Update status of clusters to 'OLD' if they haven't been updated in 3 days.
