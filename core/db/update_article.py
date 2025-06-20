@@ -33,5 +33,5 @@ def update_article_in_db(article_id: int, update_data: Dict[str, Any]) -> bool:
             # depending on Supabase client behavior.
             return True
     except Exception as e:
-        logger.error(f"[ERROR] Failed to update database for article {article_id}: {e}")
+        logger.error(f"Failed to update database for article {article_id}: {e}")
         return False
