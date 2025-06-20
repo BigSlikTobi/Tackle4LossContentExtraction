@@ -72,10 +72,15 @@ def test_recalculate_member_counts_batch(monkeypatch):
     discrepancies = db_access.recalculate_cluster_member_counts()
 
     upserts = dummy.tables["clusters"].upsert_calls
+    updates = dummy.tables["clusters"].update_calls
     deletes = dummy.tables["clusters"].delete_filters
-    updates = dummy.tables["SourceArticles"].update_calls
+    article_updates = dummy.tables["SourceArticles"].update_calls
 
-    assert {c["cluster_id"] for c in upserts[0][0]} == {"c2", "c3"}
+    # Check that c3 was upserted (new cluster) and c2 was updated (existing cluster)
+    assert len(upserts) == 1 and len(upserts[0][0]) == 1
+    assert upserts[0][0][0]["cluster_id"] == "c3"
+    assert len(updates) == 1
+    assert updates[0]["member_count"] == 2  # c2 count updated from 5 to 2
     assert any("cluster_id" in d[0] and "c1" in d[1] for d in deletes)
-    assert updates and updates[0] == {"cluster_id": None}
+    assert article_updates and article_updates[0] == {"cluster_id": None}
     assert discrepancies.get("c2") == (5, 2)
