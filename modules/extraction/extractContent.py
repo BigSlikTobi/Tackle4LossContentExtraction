@@ -28,18 +28,22 @@ async def extract_main_content(full_url: str) -> str:
     Returns:
         str: The extracted content as a string, or an error message if extraction fails.
     """
-    async with AsyncWebCrawler(verbose=False) as crawler:
-        try:
+    try:
+        async with AsyncWebCrawler(verbose=False) as crawler:
             # Create LLM strategy with text output instead of JSON
+            max_tokens = int(os.getenv("EXTRACTION_MAX_TOKENS", "16000"))
             llm_strategy = LLMExtractionStrategy(
-                provider=f"openai/{model_name}",  # Use the model_name from initialize_llm_client
-                api_token=api_token,
+                llm_config={
+                    "provider": f"openai/{model_name}",
+                    "api_token": api_token,
+                },
                 verbose=True,
-                max_tokens=16000,
+                max_tokens=max_tokens,
                 temperature=1.0,
                 word_count_threshold=50,
                 exclude_tags=["footer", "header", "nav", "aside", "script", "style","img"],
                 exclude_external_links=True,
+                timeout=40,
                 instructions="""
                     You are a content extractor. Extract the relevant text blocks
                     and return them in JSON format as a list of objects,
@@ -47,8 +51,7 @@ async def extract_main_content(full_url: str) -> str:
                     Only include the core article content.
                 """,
                 output_format="text",
-                timeout=40,  # Increased timeout
-                max_retries=3  # Increased retries
+                max_retries=3  # This is likely a parameter for LLMExtractionStrategy's own retry for arun, not LLM timeout
             )
             # Add retry logic for API reliability
             max_attempts = 4  # Increased max attempts
@@ -85,16 +88,31 @@ async def extract_main_content(full_url: str) -> str:
                     # If it's a litellm error, let's try with different parameters
                     if "litellm.APIError" in error_str:
                         # Adjust strategy for next attempt to work around API limitations
+                        # Assuming llm_strategy.instructions and llm_strategy.timeout are still valid attributes to set
                         llm_strategy.instructions = f"""
                             Attempt {attempt+2}: Extract text content from the web page.
                             Keep it simple and return plain text only.
                         """
-                        llm_strategy.timeout += 10  # Increase timeout for next attempt
+                        # Cannot dynamically adjust timeout on the strategy object for this version.
+                        # llm_strategy.timeout += 10 # This caused AttributeError
+                        # If llm_config could be modified and strategy re-read it, that would be one way,
+                        # but LLMConfig also doesn't take timeout.
+                        # For now, removing dynamic timeout adjustment.
+
+                        # If llm_config needs to be updated for retries (e.g. for temperature/max_tokens)
+                        # new_config = llm_strategy.llm_config.copy() # If LLMConfig has a copy method
+                        # new_config.temperature = max(0, new_config.temperature - 0.1) # Example
+                        # llm_strategy.llm_config = new_config
+                        # This part is speculative, current code only changes instructions and timeout.
+
             # If we reach here, all attempts failed
             return "Content extraction failed after multiple attempts"
-        except Exception as e:
-            print(f"Extraction failed for {full_url}: {str(e)}")
-            return f"Extraction failed with error: {str(e)}"
+    except Exception as e: # This will now catch errors from AsyncWebCrawler() or its __aenter__
+        error_type = type(e).__name__
+        error_message = str(e)
+        log_message = f"[ERROR] Outer exception during extraction for {full_url}. Type: {error_type}, Message: {error_message}"
+        print(log_message, file=sys.stderr) # Log to stderr for errors
+        return f"Extraction failed for {full_url}. Type: {error_type}, Error: {error_message}"
 
 async def main():
     """

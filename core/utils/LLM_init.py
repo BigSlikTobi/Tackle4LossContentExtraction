@@ -11,6 +11,8 @@ from typing import Literal
 # Load environment variables from .env file
 load_dotenv()
 
+IS_CI = os.getenv("CI") == 'true' or os.getenv("GITHUB_ACTIONS") == 'true'
+
 # Available models configuration
 ModelType = Literal["deepseek", "gpt-4.1-nano-2025-04-14"]
 MODEL_CONFIGS = {
@@ -54,6 +56,9 @@ def initialize_llm_client(model_type: ModelType = "deepseek"):
     api_key = os.getenv(config["api_key_env"])
     
     if not api_key:
+        if IS_CI:
+            print(f"WARNING: {config['api_key_env']} environment variable not set. LLM client will not be initialized.")
+            return None, None
         raise ValueError(f"Error: {config['api_key_env']} environment variable not set")
     
     client = OpenAI(
