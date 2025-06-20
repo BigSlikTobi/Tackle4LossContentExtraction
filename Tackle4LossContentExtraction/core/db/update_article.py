@@ -3,7 +3,7 @@
 Database update logic for SourceArticles table.
 """
 # Import supabase_client from the new location
-from core.db.fetch_unprocessed_articles import supabase_client
+from Tackle4LossContentExtraction.core.db.fetch_unprocessed_articles import supabase_client
 from typing import Dict, Any
 
 def update_article_in_db(article_id: int, update_data: Dict[str, Any]) -> bool:

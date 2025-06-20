@@ -3,8 +3,6 @@ import sys
 from types import SimpleNamespace
 from unittest import mock
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 class DummyTable:
     def __init__(self, data):
         self.data = data
@@ -34,7 +32,7 @@ def test_fetch_existing_clusters_skips_null(monkeypatch):
     monkeypatch.setenv("SUPABASE_KEY", "y")
 
     import importlib
-    import core.clustering.db_access as db_module
+    import Tackle4LossContentExtraction.core.clustering.db_access as db_module
     db_access = importlib.reload(db_module)
     monkeypatch.setattr(db_access, "sb", dummy)
 

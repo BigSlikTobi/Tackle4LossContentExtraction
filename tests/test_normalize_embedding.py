@@ -19,7 +19,7 @@ def ce_fixture():
     openai_mock.OpenAI = mock.Mock(return_value=mock.Mock())
 
     with mock.patch.dict(sys.modules, {"supabase": supabase_mock, "openai": openai_mock}):
-        ce = importlib.import_module("core.utils.create_embeddings")
+        ce = importlib.import_module("Tackle4LossContentExtraction.core.utils.create_embeddings")
         yield ce
 
 

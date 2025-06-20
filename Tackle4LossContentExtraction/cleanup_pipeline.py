@@ -15,16 +15,10 @@ import traceback  # Import traceback for detailed error logging
 from datetime import datetime, timedelta, UTC
 from typing import Dict, Any, List, Set, Optional
 
-# Add the parent directory to the Python path to allow for absolute imports
-# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# Simpler approach assuming structure:
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-
 # Import the necessary modules
-from core.db.fetch_unprocessed_articles import get_unprocessed_articles
+from Tackle4LossContentExtraction.core.db.fetch_unprocessed_articles import get_unprocessed_articles
 # Removed unused imports: extract_main_content, extract_content_with_llm, analyze_content_type, initialize_llm_client, create_and_store_embedding, update_article_in_db
-from modules.processing.article_processor import process_article # Import the moved function
+from Tackle4LossContentExtraction.modules.processing.article_processor import process_article # Import the moved function
 # Removed similarity and clustering imports
 
 # Removed LLM client initialization as it's not directly used here anymore

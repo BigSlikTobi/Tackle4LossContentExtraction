@@ -11,7 +11,7 @@ import sys
 import logging
 from typing import Dict, List, Tuple, Optional
 
-from core.clustering.vector_utils import parse_embedding, normalize_vector_dimensions
+from Tackle4LossContentExtraction.core.clustering.vector_utils import parse_embedding, normalize_vector_dimensions
 
 # Set up logging
 logging.basicConfig(

@@ -11,10 +11,7 @@ import sys
 import os
 import logging
 
-# Add root directory to Python path to allow importing core modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from core.clustering.db_access import recalculate_cluster_member_counts
+from Tackle4LossContentExtraction.core.clustering.db_access import recalculate_cluster_member_counts
 
 # Set up logging
 logging.basicConfig(

@@ -14,7 +14,7 @@ import datetime
 from dateutil import parser
 import logging
 from typing import Dict, List, Any, Tuple, Optional
-from core.utils.LLM_init import initialize_llm_client, ModelType
+from Tackle4LossContentExtraction.core.utils.LLM_init import initialize_llm_client, ModelType
 from supabase import create_client, Client
 from dotenv import load_dotenv
 

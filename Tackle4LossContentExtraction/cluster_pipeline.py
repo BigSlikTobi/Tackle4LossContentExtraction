@@ -7,11 +7,8 @@ import logging
 import os
 import sys
 
-# Add root directory to Python path to allow importing core modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
-from modules.clustering.cluster_articles import run_clustering_process
-from core.clustering.db_access import (
+from Tackle4LossContentExtraction.modules.clustering.cluster_articles import run_clustering_process
+from Tackle4LossContentExtraction.core.clustering.db_access import (
     recalculate_cluster_member_counts,
     update_old_clusters_status,
     repair_zero_centroid_clusters,

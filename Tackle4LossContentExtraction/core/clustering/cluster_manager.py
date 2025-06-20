@@ -6,8 +6,8 @@ import numpy as np
 import logging
 from typing import Dict, List, Tuple, Optional
 
-from core.clustering.vector_utils import cosine_similarity, normalize_vector_dimensions
-from core.clustering.db_access import (
+from Tackle4LossContentExtraction.core.clustering.vector_utils import cosine_similarity, normalize_vector_dimensions
+from Tackle4LossContentExtraction.core.clustering.db_access import (
     update_cluster_in_db,
     create_cluster_in_db,
     batch_assign_articles_to_cluster
@@ -42,7 +42,7 @@ class ClusterManager:
         self.clusters: List[Tuple[str, np.ndarray, int]] = []
         # Check and update cluster statuses if enabled
         if check_old_clusters:
-            from core.clustering.db_access import update_old_clusters_status
+            from Tackle4LossContentExtraction.core.clustering.db_access import update_old_clusters_status
             update_old_clusters_status()
 
     def update_cluster(self, cluster_id: str, old_centroid: np.ndarray, 
@@ -173,7 +173,7 @@ class ClusterManager:
         Returns:
             int: Number of clusters updated to 'OLD' status.
         """
-        from core.clustering.db_access import update_old_clusters_status
+        from Tackle4LossContentExtraction.core.clustering.db_access import update_old_clusters_status
         return update_old_clusters_status()
 
     def check_and_merge_similar_clusters(self, merge_threshold: float = 0.9) -> bool:
@@ -223,7 +223,7 @@ class ClusterManager:
                         update_cluster_in_db(primary_id, new_centroid, total_count, isContent=False)
                         
                         # Reassign articles from secondary cluster to primary cluster in batch
-                        from core.clustering.db_access import sb
+                        from Tackle4LossContentExtraction.core.clustering.db_access import sb
                         articles_resp = sb.table("SourceArticles").select("id").eq("cluster_id", secondary_id).execute()
                         sec_ids = [a["id"] for a in articles_resp.data]
                         batch_assign_articles_to_cluster([(aid, primary_id) for aid in sec_ids])

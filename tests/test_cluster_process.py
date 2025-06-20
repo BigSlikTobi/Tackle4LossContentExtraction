@@ -4,8 +4,6 @@ import os
 from unittest import mock
 import numpy as np
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 
 def test_run_clustering_process_creates_cluster(monkeypatch):
     # Fake supabase client to avoid real initialization
@@ -15,11 +13,11 @@ def test_run_clustering_process_creates_cluster(monkeypatch):
     monkeypatch.setenv("SUPABASE_KEY", "y")
 
     # Reload modules with patched supabase
-    db_access = importlib.reload(importlib.import_module("core.clustering.db_access"))
+    db_access = importlib.reload(importlib.import_module("Tackle4LossContentExtraction.core.clustering.db_access"))
     # Prevent ClusterManager init from accessing the database
     monkeypatch.setattr(db_access, "update_old_clusters_status", lambda: 0)
-    cluster_manager = importlib.reload(importlib.import_module("core.clustering.cluster_manager"))
-    cluster_articles = importlib.reload(importlib.import_module("modules.clustering.cluster_articles"))
+    cluster_manager = importlib.reload(importlib.import_module("Tackle4LossContentExtraction.core.clustering.cluster_manager"))
+    cluster_articles = importlib.reload(importlib.import_module("Tackle4LossContentExtraction.modules.clustering.cluster_articles"))
 
     articles = [
         (1, np.array([1.0, 0.0], dtype=np.float32)),
