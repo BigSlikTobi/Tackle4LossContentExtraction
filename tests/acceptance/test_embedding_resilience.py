@@ -40,9 +40,9 @@ class TestEmbeddingResilience(unittest.TestCase):
     @patch('core.utils.create_embeddings.logger', mock_create_embeddings_logger) # Patch the logger in the CUT
     @patch('core.utils.create_embeddings.supabase_client', new_callable=MagicMock)
     @patch('core.utils.create_embeddings.openai_client_instance') # Patch the actual client instance used
-    def test_openai_failures_are_handled(self, mock_actual_openai_client, mock_supabase_client_for_embeddings, mock_logger_in_module):
+    def test_openai_failures_are_handled(self, mock_actual_openai_client, mock_supabase_client_for_embeddings):
         # mock_actual_openai_client is the one used by create_embedding if not None
-        # mock_logger_in_module is mock_create_embeddings_logger (due to decorator order)
+        # The logger is patched directly with mock_create_embeddings_logger and not passed as an argument.
 
         acceptance_test_logger.info("\n--- Scenario 1: OpenAI API Failure during Embedding Creation ---")
 
@@ -93,17 +93,17 @@ class TestEmbeddingResilience(unittest.TestCase):
 
         # Check calls to the logger injected into create_embeddings.py
         # Error calls from create_embedding
-        mock_logger_in_module.error.assert_any_call(
+        mock_create_embeddings_logger.error.assert_any_call(
             "OpenAI APIConnectionError for article_id %s: %s", 2, simulated_error
         )
-        mock_logger_in_module.error.assert_any_call(
+        mock_create_embeddings_logger.error.assert_any_call(
             "OpenAI APIConnectionError for article_id %s: %s", 4, simulated_error
         )
         # Info calls from create_and_store_embedding
-        mock_logger_in_module.info.assert_any_call(
+        mock_create_embeddings_logger.info.assert_any_call(
             "Embedding creation failed for article %s (see previous errors), skipping storage.", 2
         )
-        mock_logger_in_module.info.assert_any_call(
+        mock_create_embeddings_logger.info.assert_any_call(
             "Embedding creation failed for article %s (see previous errors), skipping storage.", 4
         )
 
