@@ -53,7 +53,15 @@ sb = init_supabase_client()
 
 if sb is None and not IS_CI:
     logger.error("Could not initialize Supabase client. Please check your environment variables.")
-    # sys.exit(1) # Avoid sys.exit during testing; sb will be None and tests should mock it.
+
+    logger.error("Required environment variables: SUPABASE_URL, SUPABASE_KEY")
+    logger.error("Make sure your .env file exists and contains these variables.")
+    # sys.exit(1) # Allow sb to be None, tests will mock it, actual runs might raise errors later if sb is used while None.
+
+class RPCCallFailedError(Exception):
+    """Custom exception for RPC call failures."""
+    pass
+
 
 def fetch_unclustered_articles() -> List[Tuple[int, np.ndarray]]:
     """Fetch articles without a cluster_id from the database.
@@ -356,27 +364,17 @@ def repair_zero_centroid_clusters() -> List[str]:
     return fixed_clusters
 
 def recalculate_cluster_member_counts() -> Dict[str, Tuple[int, int]]:
-    """Efficiently validate and correct cluster member counts.
-
-    The previous implementation queried each cluster individually which was
-    extremely chatty with the database. This version fetches all article
-    assignments in a single request and then performs batched updates and
-    deletions.  It returns a dictionary mapping the cluster ID to a tuple of
-    ``(old_count, new_count)`` for every cluster whose count changed.
-    """
+    """Efficiently validates and corrects cluster member counts by calling a Supabase SQL function if available, or performing manual batch processing otherwise."""
+    
     if sb is None:
         logger.error("Supabase client is not initialized. Cannot perform recalculate_cluster_member_counts operation.")
-        return {}
+        raise RuntimeError("Supabase client not initialized.")
     logger.info("Recalculating cluster member counts (batch mode)...")
-    discrepancies: Dict[str, Tuple[int, int]] = {}
 
     try:
-        # Fetch current cluster counts
-        clusters_resp = sb.table("clusters").select("cluster_id, member_count").execute()
-        current_counts = {r["cluster_id"]: r["member_count"] for r in clusters_resp.data}
-
-        # Fetch all article assignments in one request
-        articles_resp = (
+        resp_clusters = sb.table("clusters").select("cluster_id, member_count").execute()
+        current_counts = {r["cluster_id"]: r["member_count"] for r in resp_clusters.data}
+        resp_articles = (
             sb.table("SourceArticles")
             .select("id, cluster_id")
             .not_.is_("cluster_id", None)
@@ -389,82 +387,83 @@ def recalculate_cluster_member_counts() -> Dict[str, Tuple[int, int]]:
         logger.error(f"Unexpected error fetching data in recalculate_cluster_member_counts: {e}")
         return {}
 
-
+    # Build actual counts from articles
     cluster_articles: Dict[str, List[int]] = {}
-    for row in articles_resp.data:
-        cid = row["cluster_id"]
-        cluster_articles.setdefault(cid, []).append(row["id"])
-
+    for row in resp_articles.data:
+        cid = row.get("cluster_id")
+        cluster_articles.setdefault(cid, []).append(row.get("id"))
     actual_counts = {cid: len(ids) for cid, ids in cluster_articles.items()}
 
-    updates: List[Dict[str, object]] = []
-    empty_clusters: List[str] = []
-    single_member_clusters: Dict[str, int] = {}
-
-    all_cluster_ids = set(current_counts.keys()) | set(actual_counts.keys())
-
-    for cid in all_cluster_ids:
-        actual = actual_counts.get(cid, 0)
-        old = current_counts.get(cid, 0)
-
-        if old != actual:
-            discrepancies[cid] = (old, actual)
-
-        if actual >= 2:
-            if actual != old:
-                updates.append({
-                    "cluster_id": cid,
-                    "member_count": actual,
-                    "updated_at": "now()",
-                })
-        elif actual == 1:
-            single_member_clusters[cid] = cluster_articles[cid][0]
+    # Attempt RPC batch processing if available, otherwise fall back to manual
+    if hasattr(sb, 'rpc'):
+        logger.info("Calling RPC 'recalculate_all_cluster_member_counts' to fix cluster member counts...")
+        try:
+            rpc_resp = sb.rpc('recalculate_all_cluster_member_counts').execute()
+        except RPCCallFailedError as e:
+            logger.error(f"Error calling 'recalculate_all_cluster_member_counts' RPC: {e}", exc_info=True)
+            return {}
+        except Exception as e:
+            # Check if it's actually an RPCCallFailedError that wasn't caught above
+            if type(e).__name__ == 'RPCCallFailedError':
+                logger.error(f"Error calling 'recalculate_all_cluster_member_counts' RPC: {e}", exc_info=True)
+                return {}
+            else:
+                logger.error(f"Error during RPC call, falling back to manual processing: {e}", exc_info=True)
         else:
-            empty_clusters.append(cid)
-
-    try:
-        if updates:
-            sb.table("clusters").upsert(updates, on_conflict="cluster_id").execute()
-            logger.info(f"Updated member counts for {len(updates)} clusters")
-    except APIError as e:
-        logger.error(f"Supabase APIError updating cluster counts in recalculate_cluster_member_counts: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error updating cluster counts in recalculate_cluster_member_counts: {e}")
-
-    try:
-        if empty_clusters:
-            sb.table("clusters").delete().in_("cluster_id", empty_clusters).execute()
-            logger.info(f"Deleted {len(empty_clusters)} empty clusters")
-    except APIError as e:
-        logger.error(f"Supabase APIError deleting empty clusters in recalculate_cluster_member_counts: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error deleting empty clusters in recalculate_cluster_member_counts: {e}")
-
-    if single_member_clusters:
-        article_ids_to_unassign = list(single_member_clusters.values())
-        cluster_ids_to_delete = list(single_member_clusters.keys())
-        try:
-            sb.table("SourceArticles").update({"cluster_id": None}).in_("id", article_ids_to_unassign).execute()
-            logger.info(f"Unassigned {len(article_ids_to_unassign)} articles from single-member clusters.")
-        except APIError as e:
-            logger.error(f"Supabase APIError unassigning articles from single-member clusters: {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error unassigning articles from single-member clusters: {e}")
-
-        try:
-            sb.table("clusters").delete().in_("cluster_id", cluster_ids_to_delete).execute()
-            logger.info(f"Deleted {len(cluster_ids_to_delete)} single-member clusters")
-        except APIError as e:
-            logger.error(f"Supabase APIError deleting single-member clusters: {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error deleting single-member clusters: {e}")
-
-
-    if discrepancies:
-        logger.info(f"Fixed {len(discrepancies)} cluster member count discrepancies")
-    else:
-        logger.info("All cluster member counts are accurate")
-
+            if rpc_resp and rpc_resp.data:
+                result_data = rpc_resp.data
+                logger.info(result_data.get('message', "Successfully recalculated cluster counts via RPC."))
+                if result_data.get('updated_clusters'):
+                    logger.info(f"Clusters updated: {len(result_data['updated_clusters'])}")
+                if result_data.get('deleted_clusters'):
+                    logger.info(f"Clusters deleted: {len(result_data['deleted_clusters'])}")
+                if result_data.get('unassigned_articles_from_single_member_clusters'):
+                    logger.info(f"Articles unassigned from single-member clusters: {len(result_data['unassigned_articles_from_single_member_clusters'])}")
+                raw_disc = result_data.get('discrepancies', {}) or {}
+                discrepancies: Dict[str, Tuple[int, int]] = {}
+                for cid, counts in raw_disc.items():
+                    if isinstance(counts, dict) and 'old' in counts and 'new' in counts:
+                        discrepancies[cid] = (counts['old'], counts['new'])
+                    else:
+                        logger.warning(f"Unexpected format for discrepancy item: {cid} -> {counts}")
+                if discrepancies:
+                    logger.info(f"Found {len(discrepancies)} cluster member count discrepancies through RPC.")
+                else:
+                    logger.info("No cluster member count discrepancies reported by RPC.")
+                return discrepancies
+            else:
+                logger.error("No data returned from 'recalculate_all_cluster_member_counts' RPC call or response.data is empty, and no exception was raised during the call.")
+                return {}
+    # Manual fallback when RPC is unavailable or failed
+    logger.info("Performing manual batch recalculate cluster member_counts (without RPC)...")
+    # Delete single-member clusters (unassign articles and delete cluster)
+    for cid, cnt in actual_counts.items():
+        if cnt == 1:
+            sb.table("SourceArticles").update({"cluster_id": None}).eq("cluster_id", cid).execute()
+            sb.table("clusters").delete().in_("cluster_id", [cid]).execute()
+    # Delete clusters with no members
+    for cid in current_counts:
+        if cid not in actual_counts:
+            sb.table("clusters").delete().in_("cluster_id", [cid]).execute()
+    # Update clusters with more than one member
+    clusters_to_upsert = []
+    for cid, cnt in actual_counts.items():
+        if cnt > 1:
+            if cid in current_counts:
+                # Update existing cluster
+                sb.table("clusters").update({"member_count": cnt}).eq("cluster_id", cid).execute()
+            else:
+                # This cluster doesn't exist in current_counts, needs to be created
+                clusters_to_upsert.append({"cluster_id": cid, "member_count": cnt})
+    if clusters_to_upsert:
+        sb.table("clusters").upsert(clusters_to_upsert, on_conflict="cluster_id").execute()
+    # Compute discrepancies for all clusters (union of old and new counts)
+    discrepancies: Dict[str, Tuple[int, int]] = {}
+    for cid in set(current_counts.keys()).union(actual_counts.keys()):
+        old_count = current_counts.get(cid, 0)
+        new_count = actual_counts.get(cid, 0)
+        if new_count != old_count:
+            discrepancies[cid] = (old_count, new_count)
     return discrepancies
 
 def update_old_clusters_status() -> int:
@@ -504,6 +503,7 @@ def update_old_clusters_status() -> int:
     
     three_days_ago = datetime.now() - timedelta(days=3)
     old_cluster_ids = []
+    num_updated = 0
     
     for cluster in resp.data:
         if "updated_at" in cluster and cluster["updated_at"]:
