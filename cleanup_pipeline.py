@@ -23,6 +23,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import the necessary modules
 from core.db.fetch_unprocessed_articles import get_unprocessed_articles
+from core.utils.lock_manager import acquire_lock, release_lock # Import lock functions
 # Removed unused imports: extract_main_content, extract_content_with_llm, analyze_content_type, initialize_llm_client, create_and_store_embedding, update_article_in_db
 from modules.processing.article_processor import process_article # Import the moved function
 # Removed similarity and clustering imports
@@ -36,9 +37,15 @@ from modules.processing.article_processor import process_article # Import the mo
 
 
 async def main():
+    # Attempt to acquire the lock
+    if not acquire_lock():
+        print("Pipeline is already running. Exiting.")
+        sys.exit(0)
+
     pipeline_start_time = time.time()
     print("--- Starting Main Processing Pipeline ---")
     try:
+        # The main logic of the pipeline
         # Step 1: Get unprocessed articles
         print("Fetching unprocessed articles...")
         unprocessed_articles = get_unprocessed_articles()
@@ -86,6 +93,9 @@ async def main():
         print(f"[FATAL ERROR] Unhandled exception in main pipeline: {e}")
         print(traceback.format_exc())
         sys.exit(1) # Indicate failure
+    finally:
+        release_lock()
+        print("--- Lock released. Pipeline shutdown complete. ---")
 
 if __name__ == "__main__":
     # Consider adding nest_asyncio if running in environments like Jupyter/Spyder
