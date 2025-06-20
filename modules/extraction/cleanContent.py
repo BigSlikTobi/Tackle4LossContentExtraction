@@ -14,6 +14,7 @@ import datetime
 from dateutil import parser
 import logging
 from typing import Dict, List, Any, Tuple, Optional
+import tiktoken
 from core.utils.LLM_init import initialize_llm_client, ModelType
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -96,20 +97,42 @@ def clean_publication_date(date_string: str) -> Optional[str]:
         logging.error(f"Error parsing date '{date_string}': {e}")
         return None
 
+def num_tokens(text: str, model: str) -> int:
+    """Return the number of tokens in ``text`` for ``model``."""
+    try:
+        enc = tiktoken.encoding_for_model(model)
+    except KeyError:
+        enc = tiktoken.get_encoding("cl100k_base")
+    return len(enc.encode(text))
+
+def chunk_text(text: str, max_tokens: int, model: str) -> List[str]:
+    """Split ``text`` into chunks each with at most ``max_tokens`` tokens."""
+    try:
+        enc = tiktoken.encoding_for_model(model)
+    except KeyError:
+        enc = tiktoken.get_encoding("cl100k_base")
+    tokens = enc.encode(text)
+    chunks = [enc.decode(tokens[i:i + max_tokens]) for i in range(0, len(tokens), max_tokens)]
+    return chunks
+
 def extract_content_with_llm(content: str) -> Dict[str, str]:
-    """
-    Extract article content using gpt-4.1-nano-2025-04-14 for better extraction capabilities.
+    """Extract article content using the configured LLM.
 
-    Args:
-        content (str): The raw content to process.
-
-    Returns:
-        Dict[str, str]: Dictionary with title, date, author, and content.
+    This function dynamically chunks content that exceeds the model token limit
+    and merges the results so longer articles can be processed without
+    truncation.
     """
-    # Clean the content first
     cleaned_content = clean_text(content)
-    # Construct the prompt for the LLM
-    prompt = f"""You are a content extraction assistant. Given the article content below, extract the following fields and format them as a valid JSON object:
+
+    max_tokens = int(os.getenv("LLM_MAX_TOKENS", "16000"))
+    chunk_size = max_tokens - 1000  # keep some headroom for the response
+    chunks = chunk_text(cleaned_content, chunk_size, gpt4_model)
+
+    results: List[Dict[str, str]] = []
+    try:
+        for idx, chunk in enumerate(chunks):
+            if idx == 0:
+                prompt = f"""You are a content extraction assistant. Given the article content below, extract the following fields and format them as a valid JSON object:
 
 RULES:
 - Return ONLY a valid JSON object with no additional text
@@ -127,48 +150,52 @@ Example output format:
 }}
 
 Article content to process:
-{cleaned_content}"""
-    try:
-        # Using gpt-4.1-nano-2025-04-14 for content extraction
-        response = gpt4_client.chat.completions.create(
-            model=gpt4_model,
-            messages=[
-                {"role": "system", "content": "You are a content extraction assistant that outputs only valid JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=1.0,  
-            max_tokens=16000  
-        )
-        # Get the response text
-        response_text = response.choices[0].message.content.strip()
-        # Ensure we're only trying to parse the JSON part
-        if not response_text.startswith('{'):
-            # Try to find JSON object in the response
-            json_start = response_text.find('{')
-            json_end = response_text.rfind('}') + 1
-            if json_start >= 0 and json_end > json_start:
-                response_text = response_text[json_start:json_end]
+{chunk}"""
             else:
-                raise ValueError("No JSON object found in response")
-        # Parse the JSON response
-        result = json.loads(response_text)
-        # Ensure all required fields are present
-        return {
-            "title": result.get("title", ""),
-            "publication_date": result.get("publication_date", ""),
-            "author": result.get("author", ""),
-            "main_content": result.get("main_content", "")
-        }
+                prompt = f"""Continue extracting the main article content from the text below. Return ONLY a JSON object with a 'main_content' field.
+
+Text:
+{chunk}"""
+
+            response = gpt4_client.chat.completions.create(
+                model=gpt4_model,
+                messages=[
+                    {"role": "system", "content": "You are a content extraction assistant that outputs only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=1.0,
+                max_tokens=max_tokens
+            )
+            response_text = response.choices[0].message.content.strip()
+            if not response_text.startswith('{'):
+                json_start = response_text.find('{')
+                json_end = response_text.rfind('}') + 1
+                if json_start >= 0 and json_end > json_start:
+                    response_text = response_text[json_start:json_end]
+                else:
+                    raise ValueError("No JSON object found in response")
+            results.append(json.loads(response_text))
     except Exception as e:
         print(f"Error processing with LLM: {e}")
-        print(f"Response text: {response.choices[0].message.content if 'response' in locals() else 'No response'}")
-        # Fallback to returning cleaned content
+        print(f"Response text: {response_text if 'response_text' in locals() else 'No response'}")
         return {
             "title": "",
             "publication_date": "",
             "author": "",
-            "main_content": cleaned_content
+            "main_content": cleaned_content,
         }
+
+    title = results[0].get("title", "") if results else ""
+    publication_date = results[0].get("publication_date", "") if results else ""
+    author = results[0].get("author", "") if results else ""
+    main_content = " ".join(r.get("main_content", "") for r in results)
+
+    return {
+        "title": title,
+        "publication_date": publication_date,
+        "author": author,
+        "main_content": main_content,
+    }
 
 def analyze_content_type(content: Dict[str, str]) -> Dict[str, Any]:
     """

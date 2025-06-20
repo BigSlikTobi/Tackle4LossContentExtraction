@@ -31,11 +31,12 @@ async def extract_main_content(full_url: str) -> str:
     async with AsyncWebCrawler(verbose=False) as crawler:
         try:
             # Create LLM strategy with text output instead of JSON
+            max_tokens = int(os.getenv("EXTRACTION_MAX_TOKENS", "16000"))
             llm_strategy = LLMExtractionStrategy(
                 provider=f"openai/{model_name}",  # Use the model_name from initialize_llm_client
                 api_token=api_token,
                 verbose=True,
-                max_tokens=16000,
+                max_tokens=max_tokens,
                 temperature=1.0,
                 word_count_threshold=50,
                 exclude_tags=["footer", "header", "nav", "aside", "script", "style","img"],
