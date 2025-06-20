@@ -23,15 +23,20 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# Check if the required environment variables are set
-if not SUPABASE_URL:
-    print("ERROR: SUPABASE_URL environment variable is not set")
-    sys.exit(1)
-if not SUPABASE_KEY:
-    print("ERROR: SUPABASE_KEY environment variable is not set")
-    sys.exit(1)
+supabase_client: Optional[Client] = None
+IS_CI = os.getenv("CI") == 'true' or os.getenv("GITHUB_ACTIONS") == 'true'
 
-supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Initialize Supabase client only if credentials are available
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+elif not IS_CI:
+    # Exit only if not in a CI environment
+    print("ERROR: SUPABASE_URL and/or SUPABASE_KEY environment variables are not set.")
+    sys.exit(1)
+else:
+    # In CI without credentials, so log a warning.
+    print("WARNING: Supabase credentials not found. Running in CI mode without database access.")
+
 
 # Initialize both LLM clients
 deepseek_client, deepseek_model = initialize_llm_client(model_type="deepseek")
@@ -311,6 +316,26 @@ def save_cleaned_content(cleaned_data: Dict[str, Dict[str, str]], output_file: s
         print(f"Cleaned content saved to {output_file}")
     except Exception as e:
         print(f"Error saving cleaned content: {e}")
+
+def update_article_in_db(article_id: int, update_data: Dict[str, Any]) -> None:
+    """
+    Update an article's data in the Supabase database.
+
+    Args:
+        article_id (int): The ID of the article to update.
+        update_data (Dict[str, Any]): The data to update.
+    """
+    if not supabase_client:
+        logging.warning(f"Supabase client not initialized. Skipping update for article {article_id}.")
+        return
+    try:
+        response = supabase_client.table("SourceArticles").update(update_data).eq("id", article_id).execute()
+        if response.data:
+            logging.info(f"Article {article_id} updated successfully.")
+        else:
+            logging.warning(f"No article found with id {article_id}. Update skipped.")
+    except Exception as e:
+        logging.error(f"Error updating article {article_id} in database: {e}")
 
 def update_existing_articles_content_type() -> None:
     """

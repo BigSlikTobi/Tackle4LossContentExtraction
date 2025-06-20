@@ -21,6 +21,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+IS_CI = os.getenv("CI") == 'true' or os.getenv("GITHUB_ACTIONS") == 'true'
+
 # Initialize Supabase client with proper error handling
 def init_supabase_client() -> Optional[object]:
     """Initialize the Supabase client with proper error handling.
@@ -28,42 +30,29 @@ def init_supabase_client() -> Optional[object]:
     Returns:
         Supabase client object or None if initialization fails
     """
-    # Try loading from different possible .env locations
-    for env_path in [
-        None,  # Default location (current directory)
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),  # Project root
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.env'),  # Explicit .env file
-    ]:
+    load_dotenv()
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+    
+    if SUPABASE_URL and SUPABASE_KEY:
         try:
-            if env_path:
-                logger.info(f"Trying to load .env from: {env_path}")
-                load_dotenv(dotenv_path=env_path)
-            else:
-                load_dotenv()
-                
-            SUPABASE_URL = os.getenv("SUPABASE_URL")
-            SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-            
-            if not SUPABASE_URL or not SUPABASE_KEY:
-                logger.warning(f"Missing Supabase credentials when loading from {env_path or 'default location'}")
-                continue
-                
             logger.info(f"Found Supabase credentials, attempting connection")
             return create_client(SUPABASE_URL, SUPABASE_KEY)
         except Exception as e:
             logger.error(f"Failed to initialize Supabase client: {str(e)}")
-            continue
-    
-    logger.error("Failed to initialize Supabase client with all attempted env locations")
-    return None
+            return None
+    elif not IS_CI:
+        logger.error("Failed to initialize Supabase client. Make sure your .env file exists and contains SUPABASE_URL and SUPABASE_KEY.")
+        return None
+    else:
+        logger.warning("Supabase credentials not found. Running in CI mode without database access.")
+        return None
 
 # Try to initialize the Supabase client
 sb = init_supabase_client()
 
-if sb is None:
+if sb is None and not IS_CI:
     logger.error("Could not initialize Supabase client. Please check your environment variables.")
-    logger.error("Required environment variables: SUPABASE_URL, SUPABASE_KEY")
-    logger.error("Make sure your .env file exists and contains these variables.")
     # sys.exit(1) # Avoid sys.exit during testing; sb will be None and tests should mock it.
 
 def fetch_unclustered_articles() -> List[Tuple[int, np.ndarray]]:
@@ -73,7 +62,7 @@ def fetch_unclustered_articles() -> List[Tuple[int, np.ndarray]]:
         List of tuples with article ID and embedding vector
     """
     if sb is None:
-        logger.error("Supabase client is not initialized. Cannot perform fetch_unclustered_articles operation.")
+        logger.warning("Supabase client is not initialized. Cannot perform fetch_unclustered_articles operation.")
         return []
     logger.info("Fetching unclustered articles...")
     articles = []
@@ -489,7 +478,7 @@ def update_old_clusters_status() -> int:
     if sb is None:
         logger.error("Supabase client is not initialized. Cannot perform update_old_clusters_status operation.")
         return 0
-    logger.info("Checking for clusters that haven't been updated in 3 days...")
+    logger.info("Supabase client is not initialized. Cannot perform update_old_clusters_status operation.")
     num_updated = 0
     
     try:
