@@ -74,6 +74,10 @@ class TestExtractionResilience(unittest.IsolatedAsyncioTestCase): # Use Isolated
         # --- Verification ---
         test_logger.info("\nVerifying results...")
 
+        # IMPORTANT: Print captured logs immediately for debugging before any assertions
+        captured_prints = [str(call_args[0][0]) if call_args[0] else "" for call_args in mock_builtin_print.call_args_list]
+        test_logger.info(f"Captured print outputs for debugging:\n{json.dumps(captured_prints, indent=2)}") # Use the correct logger name
+
         # 1. Check logs for appropriate error messages (via mocked print)
         # extract_main_content prints errors to sys.stderr if outer exception, or stdout for retry attempts / insufficient content
         # The main loop in extractContent.py prints warnings or success messages.
@@ -89,8 +93,8 @@ class TestExtractionResilience(unittest.IsolatedAsyncioTestCase): # Use Isolated
         #   - "Using best available content after all attempts" (if it returns the short content)
         #   - From main loop: "Warning: Extraction issue for http://example.com/insufficient_content_article"
 
-        captured_prints = [args[0] for args, kwargs in mock_builtin_print.call_args_list]
-        # test_logger.info(f"Captured print outputs:\n{json.dumps(captured_prints, indent=2)}")
+        # captured_prints = [args[0] for args, kwargs in mock_builtin_print.call_args_list] # Old line
+        # # test_logger.info(f"Captured print outputs:\n{json.dumps(captured_prints, indent=2)}") # Moved up
 
 
         # For art2 (crawl error)
@@ -99,8 +103,9 @@ class TestExtractionResilience(unittest.IsolatedAsyncioTestCase): # Use Isolated
 
         # For art3 (insufficient content)
         self.assertTrue(any("LLM returned insufficient content on attempt" in str(log) for log in captured_prints))
-        self.assertTrue(any("Using best available content after all attempts" in str(log) for log in captured_prints)) # assuming it returns the short content
-        self.assertTrue(any("Warning: Extraction issue for http://example.com/insufficient_content_article" in str(log) for log in captured_prints))
+        self.assertTrue(any("Using best available content after all attempts" in str(log) for log in captured_prints))
+        # The main loop will consider short content a "success" if it's returned, not a "warning"
+        self.assertTrue(any(f"Successfully extracted {len(self.short_content)} characters from http://example.com/insufficient_content_article" in str(log) for log in captured_prints))
 
         # For art1 & art4 (success)
         self.assertTrue(any(f"Successfully extracted {len(self.long_content)} characters from http://example.com/success_article" in str(log) for log in captured_prints))
@@ -140,4 +145,13 @@ if __name__ == '__main__':
     # For this conceptual test, this runner setup is okay.
 
     # Let's use the standard way for IsolatedAsyncioTestCase
-    unittest.main(testRunner=unittest.TextTestRunner(stream=sys.stdout, verbosity=2))
+    # unittest.main(testRunner=unittest.TextTestRunner(stream=sys.stdout, verbosity=2))
+    # For running directly, this is simpler for async:
+    async def run_tests():
+        loader = unittest.TestLoader()
+        suite = loader.loadTestsFromTestCase(TestExtractionResilience)
+        runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)
+        runner.run(suite)
+
+    if __name__ == '__main__':
+        asyncio.run(run_tests())

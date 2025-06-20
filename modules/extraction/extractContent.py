@@ -8,7 +8,7 @@ import json
 import asyncio
 import time
 import random
-from crawl4ai import AsyncWebCrawler, CacheMode, LLMConfig # Try importing LLMConfig directly
+from crawl4ai import AsyncWebCrawler, CacheMode, LLMConfig # Revert to this import
 from crawl4ai.extraction_strategy import LLMExtractionStrategy
 from core.db.fetch_unprocessed_articles import get_unprocessed_articles
 from core.utils.LLM_init import initialize_llm_client, ModelType
@@ -30,22 +30,27 @@ async def extract_main_content(full_url: str) -> str:
     """
     try:
         async with AsyncWebCrawler(verbose=False) as crawler:
-            # Create LLMConfig
-            llm_config_obj = LLMConfig(
-                provider=f"openai/{model_name}",
-                api_token=api_token
-            )
+            # Attempt to use LLMConfig by setting attributes
+            llm_config_obj = LLMConfig()
+
+            # Set provider attribute
+            # These try-except blocks for attribute setting are not strictly necessary
+            # if LLMConfig allows arbitrary attribute assignment, but were for debugging.
+            llm_config_obj.provider = f"openai/{model_name}"
+
+            # Set api_token attribute
+            llm_config_obj.api_token = api_token
 
             # Create LLM strategy with text output instead of JSON
             llm_strategy = LLMExtractionStrategy(
-                llm_config=llm_config_obj,
+                llm_config=llm_config_obj, # Pass the LLMConfig object
                 verbose=True,
                 max_tokens=16000,
                 temperature=1.0,
                 word_count_threshold=50,
                 exclude_tags=["footer", "header", "nav", "aside", "script", "style","img"],
                 exclude_external_links=True,
-                timeout=40,  # Timeout here, as LLMConfig does not take it in this version
+                timeout=40,
                 instructions="""
                     You are a content extractor. Extract the relevant text blocks
                     and return them in JSON format as a list of objects,
