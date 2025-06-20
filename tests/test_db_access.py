@@ -78,6 +78,14 @@ class TestDbAccess(unittest.TestCase):
         self.assertEqual(articles, [])
         mock_logger.error.assert_called_once_with("Unexpected error in fetch_unclustered_articles: Unexpected")
 
+    @patch('core.clustering.db_access.logger') # Let patch create the mock
+    def test_fetch_unclustered_articles_sb_none(self, mock_logger_arg):
+        mock_logger_arg.reset_mock() # Good practice, though a fresh mock is passed each time
+        with patch('core.clustering.db_access.sb', None):
+            result = fetch_unclustered_articles()
+            self.assertEqual(result, [])
+            mock_logger_arg.error.assert_called_once_with("Supabase client is not initialized. Cannot perform fetch_unclustered_articles operation.")
+
     @patch('core.clustering.db_access.logger', mock_logger)
     @patch('core.clustering.db_access.sb')
     def test_fetch_existing_clusters_success(self, mock_sb):
@@ -106,6 +114,14 @@ class TestDbAccess(unittest.TestCase):
         self.assertEqual(clusters, [])
         mock_logger.error.assert_called_once_with(f"Supabase APIError in fetch_existing_clusters: {error_dict}")
 
+    @patch('core.clustering.db_access.logger')
+    def test_fetch_existing_clusters_sb_none(self, mock_logger_arg):
+        mock_logger_arg.reset_mock()
+        with patch('core.clustering.db_access.sb', None):
+            result = fetch_existing_clusters()
+            self.assertEqual(result, [])
+            mock_logger_arg.error.assert_called_once_with("Supabase client is not initialized. Cannot perform fetch_existing_clusters operation.")
+
     @patch('core.clustering.db_access.logger', mock_logger)
     @patch('core.clustering.db_access.sb')
     def test_update_cluster_in_db_success(self, mock_sb):
@@ -129,6 +145,13 @@ class TestDbAccess(unittest.TestCase):
 
         update_cluster_in_db("c1", np.array([0.1]*768), 10)
         mock_logger.error.assert_called_once_with(f"Supabase APIError updating cluster c1: {error_dict}")
+
+    @patch('core.clustering.db_access.logger')
+    def test_update_cluster_in_db_sb_none(self, mock_logger_arg):
+        mock_logger_arg.reset_mock()
+        with patch('core.clustering.db_access.sb', None):
+            update_cluster_in_db("c1", np.array([0.1]*768), 10) # Should log error and return
+            mock_logger_arg.error.assert_called_once_with("Supabase client is not initialized. Cannot perform update_cluster_in_db operation for cluster_id c1.")
 
     @patch('core.clustering.db_access.logger', mock_logger)
     @patch('core.clustering.db_access.sb')
@@ -164,6 +187,14 @@ class TestDbAccess(unittest.TestCase):
         self.assertIsNone(cluster_id)
         mock_logger.error.assert_called_once_with(f"Supabase APIError creating cluster: {error_dict}")
 
+    @patch('core.clustering.db_access.logger')
+    def test_create_cluster_in_db_sb_none(self, mock_logger_arg):
+        mock_logger_arg.reset_mock()
+        with patch('core.clustering.db_access.sb', None):
+            result = create_cluster_in_db(np.array([0.2]*768), 1)
+            self.assertIsNone(result)
+            mock_logger_arg.error.assert_called_once_with("Supabase client is not initialized. Cannot perform create_cluster_in_db operation.")
+
     @patch('core.clustering.db_access.logger', mock_logger)
     @patch('core.clustering.db_access.sb')
     def test_assign_article_to_cluster_success(self, mock_sb):
@@ -185,6 +216,13 @@ class TestDbAccess(unittest.TestCase):
         assign_article_to_cluster(1, "c1")
         mock_logger.error.assert_called_once_with(f"Supabase APIError assigning article 1 to cluster c1: {error_dict}")
 
+    @patch('core.clustering.db_access.logger')
+    def test_assign_article_to_cluster_sb_none(self, mock_logger_arg):
+        mock_logger_arg.reset_mock()
+        with patch('core.clustering.db_access.sb', None):
+            assign_article_to_cluster(1, "c1") # Should log error and return
+            mock_logger_arg.error.assert_called_once_with("Supabase client is not initialized. Cannot perform assign_article_to_cluster operation for article_id 1.")
+
     @patch('core.clustering.db_access.logger', mock_logger)
     @patch('core.clustering.db_access.sb')
     def test_batch_assign_articles_to_cluster_success(self, mock_sb):
@@ -205,6 +243,13 @@ class TestDbAccess(unittest.TestCase):
 
         batch_assign_articles_to_cluster([(1, "c1"), (2, "c2")])
         mock_logger.error.assert_called_once_with(f"Supabase APIError batch assigning articles: {error_dict}")
+
+    @patch('core.clustering.db_access.logger')
+    def test_batch_assign_articles_to_cluster_sb_none(self, mock_logger_arg):
+        mock_logger_arg.reset_mock()
+        with patch('core.clustering.db_access.sb', None):
+            batch_assign_articles_to_cluster([(1, "c1")]) # Should log error and return
+            mock_logger_arg.error.assert_called_once_with("Supabase client is not initialized. Cannot perform batch_assign_articles_to_cluster operation.")
 
     @patch('core.clustering.db_access.logger', mock_logger)
     @patch('core.clustering.db_access.sb')
@@ -272,6 +317,14 @@ class TestDbAccess(unittest.TestCase):
         self.assertEqual(fixed, [])
         mock_logger.error.assert_called_once_with(f"Supabase APIError fetching clusters in repair_zero_centroid_clusters: {error_dict}")
 
+    @patch('core.clustering.db_access.logger')
+    def test_repair_zero_centroid_clusters_sb_none(self, mock_logger_arg):
+        mock_logger_arg.reset_mock()
+        with patch('core.clustering.db_access.sb', None):
+            result = repair_zero_centroid_clusters()
+            self.assertEqual(result, [])
+            mock_logger_arg.error.assert_called_once_with("Supabase client is not initialized. Cannot perform repair_zero_centroid_clusters operation.")
+
     # TODO: Add more tests for recalculate_cluster_member_counts and update_old_clusters_status
 
     @patch('core.clustering.db_access.logger', mock_logger)
@@ -318,6 +371,14 @@ class TestDbAccess(unittest.TestCase):
         self.assertEqual(discrepancies, {})
         mock_logger.error.assert_called_with(f"Supabase APIError fetching data in recalculate_cluster_member_counts: {error_dict}")
 
+    @patch('core.clustering.db_access.logger')
+    def test_recalculate_cluster_member_counts_sb_none(self, mock_logger_arg):
+        mock_logger_arg.reset_mock()
+        with patch('core.clustering.db_access.sb', None):
+            result = recalculate_cluster_member_counts()
+            self.assertEqual(result, {})
+            mock_logger_arg.error.assert_called_once_with("Supabase client is not initialized. Cannot perform recalculate_cluster_member_counts operation.")
+
     @patch('core.clustering.db_access.logger', mock_logger)
     @patch('core.clustering.db_access.sb')
     def test_update_old_clusters_status_success_no_updates(self, mock_sb):
@@ -355,6 +416,14 @@ class TestDbAccess(unittest.TestCase):
         num_updated = update_old_clusters_status()
         self.assertEqual(num_updated, 0)
         mock_logger.error.assert_called_once_with(f"Supabase APIError fetching clusters in update_old_clusters_status: {error_dict}")
+
+    @patch('core.clustering.db_access.logger')
+    def test_update_old_clusters_status_sb_none(self, mock_logger_arg):
+        mock_logger_arg.reset_mock()
+        with patch('core.clustering.db_access.sb', None):
+            result = update_old_clusters_status()
+            self.assertEqual(result, 0)
+            mock_logger_arg.error.assert_called_once_with("Supabase client is not initialized. Cannot perform update_old_clusters_status operation.")
 
 
 if __name__ == '__main__':

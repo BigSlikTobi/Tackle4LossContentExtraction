@@ -11,73 +11,109 @@ import httpx # Import httpx for mocking request/response
 from core.utils.create_embeddings import create_embedding, normalize_embedding, store_embedding, create_and_store_embedding
 from openai import APIError, APITimeoutError, RateLimitError, APIConnectionError, APIStatusError
 import numpy as np
+import logging # Import logging for logger type hint if needed
 
-# Mock the OpenAI client globally for all tests in this class
-@patch('core.utils.create_embeddings.client')
+# Mock the logger used in the module.
+# We are patching 'core.utils.create_embeddings.logger' which is the logger instance.
+mock_module_logger = MagicMock(spec=logging.Logger)
+
+# Mock the OpenAI client instance globally for relevant tests
+@patch('core.utils.create_embeddings.logger', mock_module_logger)
+@patch('core.utils.create_embeddings.openai_client_instance')
 class TestCreateEmbeddingFunction(unittest.TestCase):
 
-    def test_create_embedding_success(self, mock_openai_client):
+    def setUp(self):
+        mock_module_logger.reset_mock()
+
+    def test_create_embedding_success(self, mock_openai_client_instance):
         """Test successful embedding creation."""
         mock_embedding_data = [0.1, 0.2, 0.3]
         mock_response = MagicMock()
         mock_response.data = [MagicMock()]
         mock_response.data[0].embedding = mock_embedding_data
-        mock_openai_client.embeddings.create.return_value = mock_response
+        mock_openai_client_instance.embeddings.create.return_value = mock_response
 
         embedding = create_embedding("test text", article_id=1)
         self.assertEqual(embedding, mock_embedding_data)
-        mock_openai_client.embeddings.create.assert_called_once_with(
+        mock_openai_client_instance.embeddings.create.assert_called_once_with(
             model="text-embedding-3-small",
             input="test text",
             encoding_format="float"
         )
+        mock_module_logger.error.assert_not_called()
 
-    @patch('builtins.print')
-    def test_create_embedding_api_error(self, mock_print, mock_openai_client):
+    def test_create_embedding_openai_client_none(self, mock_openai_client_instance):
+        """Test create_embedding when openai_client_instance is None."""
+        with patch('core.utils.create_embeddings.openai_client_instance', None):
+            embedding = create_embedding("test text", article_id=100)
+            self.assertIsNone(embedding)
+            mock_module_logger.error.assert_called_once_with(
+                "OpenAI client is not initialized (likely missing API key). Cannot create embedding for article_id: %s.", 100
+            )
+
+    def test_create_embedding_openai_client_no_api_key(self, mock_openai_client_instance):
+        """Test create_embedding when openai_client_instance.api_key is None."""
+        # Mock the client instance itself to simulate no api_key after initialization
+        mock_configured_client = MagicMock()
+        mock_configured_client.api_key = None # Simulate missing API key
+        # mock_openai_client_instance is already a mock passed to the test method by @patch
+        # We change its behavior for this test or repatch it locally.
+        with patch('core.utils.create_embeddings.openai_client_instance', mock_configured_client):
+            embedding = create_embedding("test text", article_id=101)
+            self.assertIsNone(embedding)
+            mock_module_logger.error.assert_called_once_with(
+                "OpenAI client is not configured with an API key. Cannot create embedding for article_id: %s.", 101
+            )
+
+    def test_create_embedding_api_error(self, mock_openai_client_instance):
         """Test handling of OpenAI APIError."""
         mock_request = httpx.Request(method="POST", url="https://api.openai.com/v1/embeddings")
-        # APIError base class might not use response directly in constructor; request and body are more common.
-        mock_openai_client.embeddings.create.side_effect = APIError("Test API Error", request=mock_request, body=None)
+        error_instance = APIError("Test API Error", request=mock_request, body=None)
+        mock_openai_client_instance.embeddings.create.side_effect = error_instance
 
         embedding = create_embedding("test text for api error", article_id=2)
         self.assertIsNone(embedding)
-        mock_print.assert_called_with("OpenAI APIError: Test API Error for article_id: 2", file=sys.stderr)
+        mock_module_logger.error.assert_called_once_with(
+            "OpenAI APIError (e.g. 5xx) for article_id %s: %s", 2, error_instance
+        )
 
-    @patch('builtins.print')
-    def test_create_embedding_timeout_error(self, mock_print, mock_openai_client):
+    def test_create_embedding_timeout_error(self, mock_openai_client_instance):
         """Test handling of OpenAI APITimeoutError."""
-        # APITimeoutError(message) - simplified
-        mock_openai_client.embeddings.create.side_effect = APITimeoutError("Test Timeout Error")
+        error_instance = APITimeoutError("Test Timeout Error") # Request is optional
+        mock_openai_client_instance.embeddings.create.side_effect = error_instance
 
         embedding = create_embedding("test text for timeout error", article_id=3)
         self.assertIsNone(embedding)
-        mock_print.assert_called_with("OpenAI APITimeoutError: Request timed out. for article_id: 3", file=sys.stderr)
+        mock_module_logger.error.assert_called_once_with(
+            "OpenAI APITimeoutError for article_id %s: %s", 3, error_instance
+        )
 
-    @patch('builtins.print')
-    def test_create_embedding_rate_limit_error(self, mock_print, mock_openai_client):
+    def test_create_embedding_rate_limit_error(self, mock_openai_client_instance):
         """Test handling of OpenAI RateLimitError."""
         mock_request = httpx.Request(method="POST", url="https://api.openai.com/v1/embeddings")
         mock_response = httpx.Response(status_code=429, request=mock_request, content=b"Rate limit exceeded")
-        # RateLimitError(message, response, body) - request comes from response
-        mock_openai_client.embeddings.create.side_effect = RateLimitError("Test Rate Limit Error", response=mock_response, body=None)
+        error_instance = RateLimitError("Test Rate Limit Error", response=mock_response, body=None)
+        mock_openai_client_instance.embeddings.create.side_effect = error_instance
 
         embedding = create_embedding("test text for rate limit error", article_id=4)
         self.assertIsNone(embedding)
-        mock_print.assert_called_with("OpenAI RateLimitError: Test Rate Limit Error for article_id: 4", file=sys.stderr)
+        mock_module_logger.error.assert_called_once_with(
+            "OpenAI RateLimitError for article_id %s: %s", 4, error_instance
+        )
 
-    @patch('builtins.print')
-    def test_create_embedding_connection_error(self, mock_print, mock_openai_client):
+    def test_create_embedding_connection_error(self, mock_openai_client_instance):
         """Test handling of OpenAI APIConnectionError."""
         mock_request = httpx.Request(method="POST", url="https://api.openai.com/v1/embeddings")
-        # APIConnectionError(message, request=request)
-        mock_openai_client.embeddings.create.side_effect = APIConnectionError(message="Test Connection Error", request=mock_request)
+        error_instance = APIConnectionError(message="Test Connection Error", request=mock_request)
+        mock_openai_client_instance.embeddings.create.side_effect = error_instance
 
         embedding = create_embedding("test text for connection error", article_id=5)
         self.assertIsNone(embedding)
-        mock_print.assert_called_with("OpenAI APIConnectionError: Test Connection Error for article_id: 5", file=sys.stderr)
+        mock_module_logger.error.assert_called_once_with(
+            "OpenAI APIConnectionError for article_id %s: %s", 5, error_instance
+        )
 
-    @patch('builtins.print')
-    def test_create_embedding_status_error(self, mock_print, mock_openai_client):
+    def test_create_embedding_status_error(self, mock_openai_client_instance):
         """Test handling of OpenAI APIStatusError."""
         mock_request = httpx.Request(method="POST", url="https://api.openai.com/v1/embeddings")
         # Ensure the mocked response has a status code that would typically be an APIStatusError (e.g., 400, 401, 403, etc.)
@@ -85,30 +121,31 @@ class TestCreateEmbeddingFunction(unittest.TestCase):
         mock_response = httpx.Response(status_code=400, request=mock_request, content=b"Bad Request")
 
         # The APIStatusError constructor expects 'response' and 'body' (optional), and 'request' implicitly from response
-        mock_openai_client.embeddings.create.side_effect = APIStatusError("Test Status Error", response=mock_response, body=None)
+        error_instance = APIStatusError("Test Status Error", response=mock_response, body=None)
+        mock_openai_client_instance.embeddings.create.side_effect = error_instance
 
         embedding = create_embedding("test text for status error", article_id=6)
         self.assertIsNone(embedding)
-        # The __str__ of APIStatusError includes the status code, so the error message in the code might be different
-        # For now, let's assume the generic "OpenAI APIStatusError: ..." message as per current code.
-        # If the actual error message in code changes to be more specific, this assertion will need an update.
-        # The key is that it's caught by the APIStatusError handler.
-        # The print statement in the actual code is: print(f"OpenAI APIStatusError: {e}"...)
-        # The string representation of e (the error instance) will be "Test Status Error"
-        mock_print.assert_called_with("OpenAI APIStatusError: Test Status Error for article_id: 6", file=sys.stderr)
+        mock_module_logger.error.assert_called_once_with(
+            "OpenAI APIStatusError (e.g. 4xx) for article_id %s: %s", 6, error_instance
+        )
 
-
-    @patch('builtins.print')
-    def test_create_embedding_unexpected_openai_error(self, mock_print, mock_openai_client):
-        """Test handling of a generic Exception from OpenAI client."""
-        mock_openai_client.embeddings.create.side_effect = Exception("Unexpected test error")
+    def test_create_embedding_unexpected_error(self, mock_openai_client_instance):
+        """Test handling of a generic Exception from OpenAI client call."""
+        error_instance = Exception("Unexpected test error")
+        mock_openai_client_instance.embeddings.create.side_effect = error_instance
 
         embedding = create_embedding("test text for unexpected error", article_id=7)
         self.assertIsNone(embedding)
-        mock_print.assert_called_with("Unexpected error: Unexpected test error for article_id: 7", file=sys.stderr)
+        mock_module_logger.error.assert_called_once_with(
+            "Unexpected error during embedding creation for article_id %s: %s", 7, error_instance, exc_info=True
+        )
 
-
+@patch('core.utils.create_embeddings.logger', mock_module_logger) # Patch logger for this class too
 class TestNormalizeEmbeddingFunction(unittest.TestCase):
+    def setUp(self):
+        mock_module_logger.reset_mock()
+
     def test_normalize_embedding_non_zero_norm(self):
         embedding = [1.0, 2.0, 2.0] # Norm is 3
         normalized = normalize_embedding(embedding)
@@ -128,56 +165,76 @@ class TestNormalizeEmbeddingFunction(unittest.TestCase):
         np.testing.assert_array_almost_equal(normalized, expected)
 
 
+
+@patch('core.utils.create_embeddings.logger', mock_module_logger)
 @patch('core.utils.create_embeddings.supabase_client')
 class TestStoreEmbeddingFunction(unittest.TestCase):
 
-    def test_store_embedding_success(self, mock_supabase_client):
+    def setUp(self):
+        mock_module_logger.reset_mock()
+
+    def test_store_embedding_success(self, mock_supabase_client_instance):
         """Test successful storage of an embedding."""
         mock_insert_builder = MagicMock()
-        mock_supabase_client.table.return_value.insert.return_value = mock_insert_builder
-        # mock_insert_builder.execute.return_value = MagicMock() # No need to mock execute if not checking its response
+        mock_supabase_client_instance.table.return_value.insert.return_value = mock_insert_builder
 
         article_id = 10
         embedding = [0.1, 0.2, 0.3]
 
-        with patch('builtins.print') as mock_print: # Capture print output
-            store_embedding(article_id, embedding)
+        store_embedding(article_id, embedding)
 
-        mock_supabase_client.table.assert_called_once_with("ArticleVector")
-        mock_supabase_client.table.return_value.insert.assert_called_once_with({
+        mock_supabase_client_instance.table.assert_called_once_with("ArticleVector")
+        mock_supabase_client_instance.table.return_value.insert.assert_called_once_with({
             "embedding": embedding,
             "SourceArticle": article_id
         })
         mock_insert_builder.execute.assert_called_once()
-        mock_print.assert_called_with(f"Successfully stored embedding for article {article_id}")
+        mock_module_logger.info.assert_called_once_with("Successfully stored embedding for article %s", article_id)
+        mock_module_logger.error.assert_not_called()
 
-    @patch('builtins.print')
-    def test_store_embedding_db_error(self, mock_print, mock_supabase_client):
+    def test_store_embedding_supabase_client_none(self, mock_supabase_client_instance):
+        """Test store_embedding when supabase_client is None."""
+        # We patch supabase_client at the module level for this test's scope
+        with patch('core.utils.create_embeddings.supabase_client', None):
+            store_embedding(111, [0.1,0.2])
+            mock_module_logger.error.assert_called_once_with(
+                "Supabase client not initialized. Cannot store embedding for article_id %s.", 111
+            )
+            # Ensure no DB calls were attempted if client is None
+            mock_supabase_client_instance.table.assert_not_called()
+
+
+    def test_store_embedding_db_error(self, mock_supabase_client_instance):
         """Test handling of a database error during storage."""
         mock_insert_builder = MagicMock()
-        mock_supabase_client.table.return_value.insert.return_value = mock_insert_builder
-        mock_insert_builder.execute.side_effect = Exception("DB Test Error")
+        mock_supabase_client_instance.table.return_value.insert.return_value = mock_insert_builder
+        error_instance = Exception("DB Test Error")
+        mock_insert_builder.execute.side_effect = error_instance
 
         article_id = 11
         embedding = [0.4, 0.5, 0.6]
 
         store_embedding(article_id, embedding)
 
-        mock_supabase_client.table.assert_called_once_with("ArticleVector")
-        mock_supabase_client.table.return_value.insert.assert_called_once_with({
+        mock_supabase_client_instance.table.assert_called_once_with("ArticleVector")
+        mock_supabase_client_instance.table.return_value.insert.assert_called_once_with({
             "embedding": embedding,
             "SourceArticle": article_id
         })
         mock_insert_builder.execute.assert_called_once()
-        mock_print.assert_called_with(f"Error storing embedding for article_id {article_id}: DB Test Error", file=sys.stderr)
+        mock_module_logger.error.assert_called_once_with(
+            "Error storing embedding for article_id %s: %s", article_id, error_instance, exc_info=True
+        )
 
-
+@patch('core.utils.create_embeddings.logger', mock_module_logger)
 @patch('core.utils.create_embeddings.store_embedding')
 @patch('core.utils.create_embeddings.normalize_embedding')
 @patch('core.utils.create_embeddings.create_embedding')
 class TestCreateAndStoreEmbeddingFunction(unittest.TestCase):
+    def setUp(self):
+        mock_module_logger.reset_mock()
 
-    def test_create_and_store_embedding_success(self, mock_create_embedding, mock_normalize_embedding, mock_store_embedding):
+    def test_create_and_store_embedding_success(self, mock_create_embedding, mock_normalize_embedding, mock_store_embedding_func):
         """Test successful creation and storage of an embedding."""
         article_id = 20
         content = "Test content for end-to-end success"
@@ -192,41 +249,48 @@ class TestCreateAndStoreEmbeddingFunction(unittest.TestCase):
 
         mock_create_embedding.assert_called_once_with(content, article_id=article_id)
         mock_normalize_embedding.assert_called_once_with(raw_embedding)
-        mock_store_embedding.assert_called_once_with(article_id, normalized_embedding)
+        mock_store_embedding_func.assert_called_once_with(article_id, normalized_embedding)
+        mock_module_logger.error.assert_not_called() # No errors in this path
+        mock_module_logger.info.assert_not_called() # No info log for skipping in success path
 
-    @patch('builtins.print')
-    def test_create_and_store_embedding_creation_fails(self, mock_print, mock_create_embedding, mock_normalize_embedding, mock_store_embedding):
+    def test_create_and_store_embedding_creation_fails(self, mock_create_embedding, mock_normalize_embedding, mock_store_embedding_func):
         """Test that store_embedding is not called if create_embedding returns None."""
         article_id = 21
         content = "Test content where embedding creation fails"
 
         mock_create_embedding.return_value = None
-        # mock_normalize_embedding and mock_store_embedding are already mocks
 
         create_and_store_embedding(article_id, content)
 
         mock_create_embedding.assert_called_once_with(content, article_id=article_id)
         mock_normalize_embedding.assert_not_called()
-        mock_store_embedding.assert_not_called()
-        mock_print.assert_called_with(f"Embedding creation failed for article {article_id}, skipping storage.", file=sys.stderr)
+        mock_store_embedding_func.assert_not_called()
+        # Check for the info log about skipping storage
+        mock_module_logger.info.assert_called_once_with(
+            "Embedding creation failed for article %s (see previous errors), skipping storage.", article_id
+        )
 
-    @patch('builtins.print')
-    def test_create_and_store_embedding_normalization_fails(self, mock_print, mock_create_embedding, mock_normalize_embedding, mock_store_embedding):
+    def test_create_and_store_embedding_normalization_fails(self, mock_create_embedding, mock_normalize_embedding, mock_store_embedding_func):
         """Test error handling if normalize_embedding fails."""
         article_id = 22
         content = "Test content where normalization fails"
         raw_embedding = [0.1, 0.2, 0.3]
+        error_instance = Exception("Normalization Test Error")
 
         mock_create_embedding.return_value = raw_embedding
-        mock_normalize_embedding.side_effect = Exception("Normalization Test Error")
-        # mock_store_embedding is already a mock
+        mock_normalize_embedding.side_effect = error_instance
 
         create_and_store_embedding(article_id, content)
 
         mock_create_embedding.assert_called_once_with(content, article_id=article_id)
         mock_normalize_embedding.assert_called_once_with(raw_embedding)
-        mock_store_embedding.assert_not_called()
-        mock_print.assert_called_with(f"Error in create_and_store_embedding for article {article_id}: Normalization Test Error", file=sys.stderr)
+        mock_store_embedding_func.assert_not_called()
+        mock_module_logger.error.assert_called_once_with(
+            "Error during embedding normalization or dispatching to storage for article %s: %s",
+            article_id,
+            error_instance,
+            exc_info=True
+        )
 
 
 if __name__ == '__main__':

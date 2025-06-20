@@ -72,6 +72,9 @@ def fetch_unclustered_articles() -> List[Tuple[int, np.ndarray]]:
     Returns:
         List of tuples with article ID and embedding vector
     """
+    if sb is None:
+        logger.error("Supabase client is not initialized. Cannot perform fetch_unclustered_articles operation.")
+        return []
     logger.info("Fetching unclustered articles...")
     articles = []
     try:
@@ -110,6 +113,9 @@ def fetch_existing_clusters() -> List[Tuple[str, np.ndarray, int]]:
     Returns:
         List of tuples with cluster ID, centroid vector, and member count
     """
+    if sb is None:
+        logger.error("Supabase client is not initialized. Cannot perform fetch_existing_clusters operation.")
+        return []
     logger.info("Fetching existing clusters...")
     clusters = []
     try:
@@ -157,6 +163,9 @@ def update_cluster_in_db(cluster_id: str, new_centroid: np.ndarray, new_count: i
         new_count: The updated member count
         isContent: Whether the cluster has content associated with it
     """
+    if sb is None:
+        logger.error(f"Supabase client is not initialized. Cannot perform update_cluster_in_db operation for cluster_id {cluster_id}.")
+        return # Or return False if a boolean indicator is preferred by callers
     try:
         # Check if we need to normalize dimensions for the database
         # The database expects 768 dimensions, but our model might produce 1536
@@ -198,6 +207,9 @@ def create_cluster_in_db(centroid: np.ndarray, member_count: int) -> Optional[st
     Returns:
         str: The ID of the newly created cluster, or None on failure.
     """
+    if sb is None:
+        logger.error("Supabase client is not initialized. Cannot perform create_cluster_in_db operation.")
+        return None
     try:
         # Check if we need to normalize dimensions for the database
         # The database expects 768 dimensions, but our model might produce 1536
@@ -239,6 +251,9 @@ def assign_article_to_cluster(article_id: int, cluster_id: str) -> None:
         article_id: The ID of the article
         cluster_id: The ID of the cluster to assign the article to
     """
+    if sb is None:
+        logger.error(f"Supabase client is not initialized. Cannot perform assign_article_to_cluster operation for article_id {article_id}.")
+        return # Or return False
     try:
         sb.table("SourceArticles").update({
             "cluster_id": cluster_id
@@ -255,6 +270,9 @@ def batch_assign_articles_to_cluster(assignments: List[Tuple[int, str]]) -> None
     Args:
         assignments: A list of ``(article_id, cluster_id)`` tuples.
     """
+    if sb is None:
+        logger.error("Supabase client is not initialized. Cannot perform batch_assign_articles_to_cluster operation.")
+        return # Or return False
     if not assignments:
         return
     try:
@@ -273,6 +291,9 @@ def repair_zero_centroid_clusters() -> List[str]:
 
     Returns a list of cluster IDs that were updated.
     """
+    if sb is None:
+        logger.error("Supabase client is not initialized. Cannot perform repair_zero_centroid_clusters operation.")
+        return []
     logger.info("Checking for clusters with zero centroid...")
     fixed_clusters: List[str] = []
     try:
@@ -356,6 +377,9 @@ def recalculate_cluster_member_counts() -> Dict[str, Tuple[int, int]]:
     deletions.  It returns a dictionary mapping the cluster ID to a tuple of
     ``(old_count, new_count)`` for every cluster whose count changed.
     """
+    if sb is None:
+        logger.error("Supabase client is not initialized. Cannot perform recalculate_cluster_member_counts operation.")
+        return {}
     logger.info("Recalculating cluster member counts (batch mode)...")
     discrepancies: Dict[str, Tuple[int, int]] = {}
 
@@ -462,6 +486,9 @@ def update_old_clusters_status() -> int:
     Returns:
         Number of clusters updated to OLD status
     """
+    if sb is None:
+        logger.error("Supabase client is not initialized. Cannot perform update_old_clusters_status operation.")
+        return 0
     logger.info("Checking for clusters that haven't been updated in 3 days...")
     num_updated = 0
     
