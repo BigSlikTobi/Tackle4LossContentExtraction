@@ -87,44 +87,43 @@ class TestDbAccess(unittest.TestCase):
             mock_logger_arg.warning.assert_called_once_with("Supabase client is not initialized. Cannot perform fetch_unclustered_articles operation.")
 
 
-class TestFetchData(unittest.TestCase):
+class TestFetchExistingClusters(unittest.TestCase):
     @patch('core.clustering.db_access.sb')
-    def test_fetch_data_success(self, mock_sb):
-        # Setup mock
+    def test_fetch_existing_clusters_success(self, mock_sb):
         mock_sb.table.return_value.select.return_value.execute.return_value = MagicMock(
-            data=[{"id": 1, "title": "Test Article"}], error=None)
+            data=[{"id": 1, "cluster_data": "some_data"}], error=None)
 
-        from core.clustering.db_access import fetch_data  # Import here to avoid circular import
-        result = fetch_data("some_table")
+        from core.clustering.db_access import fetch_existing_clusters  # Import here to avoid circular import
+        result = fetch_existing_clusters()
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["id"], 1)
 
     @patch('core.clustering.db_access.logger')
-    def test_fetch_data_api_error(self, mock_logger_arg):
+    def test_fetch_existing_clusters_api_error(self, mock_logger_arg):
         mock_logger_arg.reset_mock()
         error_dict = {"message": "API error"}
         with patch('core.clustering.db_access.sb.table.return_value.select.return_value.execute',
                    side_effect=APIError(error_dict)):
-            from core.clustering.db_access import fetch_data  # Import here to avoid circular import
-            result = fetch_data("some_table")
+            from core.clustering.db_access import fetch_existing_clusters  # Import here to avoid circular import
+            result = fetch_existing_clusters()
             self.assertEqual(result, [])
-            mock_logger_arg.error.assert_called_once_with(f"Supabase APIError in fetch_data: {error_dict}")
+            mock_logger_arg.error.assert_called_once_with(f"Supabase APIError in fetch_existing_clusters: {error_dict}")
 
     @patch('core.clustering.db_access.logger')
-    def test_fetch_data_generic_error(self, mock_logger_arg):
+    def test_fetch_existing_clusters_generic_error(self, mock_logger_arg):
         mock_logger_arg.reset_mock()
         with patch('core.clustering.db_access.sb.table.return_value.select.return_value.execute',
                    side_effect=Exception("Generic error")):
-            from core.clustering.db_access import fetch_data  # Import here to avoid circular import
-            result = fetch_data("some_table")
+            from core.clustering.db_access import fetch_existing_clusters  # Import here to avoid circular import
+            result = fetch_existing_clusters()
             self.assertEqual(result, [])
-            mock_logger_arg.error.assert_called_once_with("Unexpected error in fetch_data: Generic error")
+            mock_logger_arg.error.assert_called_once_with("Unexpected error in fetch_existing_clusters: Generic error")
 
     @patch('core.clustering.db_access.logger')
-    def test_fetch_data_sb_none(self, mock_logger_arg):
+    def test_fetch_existing_clusters_sb_none(self, mock_logger_arg):
         mock_logger_arg.reset_mock()
         with patch('core.clustering.db_access.sb', None):
-            from core.clustering.db_access import fetch_data  # Import here to avoid circular import
-            result = fetch_data("some_table")
+            from core.clustering.db_access import fetch_existing_clusters  # Import here to avoid circular import
+            result = fetch_existing_clusters()
             self.assertEqual(result, [])
-            mock_logger_arg.warning.assert_called_once_with("Supabase client is not initialized. Cannot perform fetch_data operation.")
+            mock_logger_arg.warning.assert_called_once_with("Supabase client is not initialized. Cannot perform fetch_existing_clusters operation.")
