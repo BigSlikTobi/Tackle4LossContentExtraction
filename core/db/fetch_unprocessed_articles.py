@@ -16,16 +16,27 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase_client: Optional[Client] = None
 IS_CI = os.getenv("CI") == 'true' or os.getenv("GITHUB_ACTIONS") == 'true'
 
-# Initialize Supabase client only if credentials are available
-if SUPABASE_URL and SUPABASE_KEY:
-    supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-elif not IS_CI:
-    # Exit only if not in a CI environment
+# Initialize Supabase client only if credentials are available and valid
+if SUPABASE_URL and SUPABASE_KEY and not IS_CI:
+    try:
+        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        print(f"WARNING: Failed to initialize Supabase client: {e}")
+        supabase_client = None
+elif IS_CI and SUPABASE_URL and SUPABASE_KEY and not SUPABASE_KEY.startswith('test-'):
+    # In CI with what appears to be real credentials
+    try:
+        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        print(f"WARNING: Failed to initialize Supabase client in CI: {e}")
+        supabase_client = None
+elif not IS_CI and (not SUPABASE_URL or not SUPABASE_KEY):
+    # Exit only if not in a CI environment and missing credentials
     print("ERROR: SUPABASE_URL and/or SUPABASE_KEY environment variables are not set.")
     sys.exit(1)
 else:
-    # In CI without credentials, so log a warning.
-    print("WARNING: Supabase credentials not found. Running in CI mode without database access.")
+    # In CI with test credentials or other cases - just log and continue
+    print("WARNING: Supabase credentials not available or in CI mode. Running without database access.")
 
 
 def get_unprocessed_articles() -> List[Dict]:

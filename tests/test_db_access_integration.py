@@ -3,6 +3,10 @@ import uuid
 import logging
 from typing import List, Dict, Any
 import os # For environment variables
+import pytest
+
+# Check if we're in CI environment - skip integration tests if so
+IS_CI = os.getenv("CI") == 'true' or os.getenv("GITHUB_ACTIONS") == 'true'
 
 # Attempt to import sb and recalculate_cluster_member_counts
 # This structure assumes that db_access.py can be imported and sb is initialized.
@@ -77,6 +81,7 @@ def cleanup_test_data(cluster_ids: List[str], article_ids: List[int]):
         # Don't raise here, as it might hide the actual test failure
 
 
+@pytest.mark.skipif(IS_CI, reason="Skipping integration tests in CI environment")
 class TestRecalculateClusterMemberCountsIntegration(unittest.TestCase):
 
     test_cluster_ids_managed: List[str] = []

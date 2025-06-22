@@ -87,6 +87,8 @@ jobs:
         SUPABASE_URL: https://test.supabase.co
         SUPABASE_KEY: test-key-1234567890abcdef
         DEEPSEEK_API_KEY: test-key-1234567890abcdef
+        CI: true
+        GITHUB_ACTIONS: true
         PYTHONPATH: .
       run: |
         # First, run a simple test collection to verify setup
