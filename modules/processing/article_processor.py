@@ -4,6 +4,7 @@ Module for processing a single article through extraction, cleaning, embedding, 
 import asyncio
 import traceback
 from typing import Dict, Any, Optional
+from urllib.parse import unquote
 
 # Assuming the top-level directory is in sys.path (handled by Pipeline.py)
 from modules.extraction.extractContent import extract_main_content
@@ -28,6 +29,9 @@ async def process_article(article: Dict[str, Any]) -> Optional[int]:
     if not url:
         print(f"[ERROR] Skipping article {article_id} due to missing URL.")
         return None
+    
+    # URL decode the URL in case it's been URL-encoded
+    url = unquote(url)
     article_url = url if url.startswith("http") else "https://www." + url
 
     print(f"\n{'='*50}")

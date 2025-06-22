@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tackle4loss-pipeline
+  labels:
+    app: tackle4loss-pipeline
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tackle4loss-pipeline
+  template:
+    metadata:
+      labels:
+        app: tackle4loss-pipeline
+    spec:
+      containers:
+      - name: pipeline
+        image: tackle4loss-pipeline:prod
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: tackle4loss-secrets
+              key: openai-api-key
+        - name: SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: tackle4loss-secrets
+              key: supabase-url
+        - name: SUPABASE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: tackle4loss-secrets
+              key: supabase-key
+        - name: DEEPSEEK_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: tackle4loss-secrets
+              key: deepseek-api-key
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 30
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tackle4loss-secrets
+type: Opaque
+stringData:
+  openai-api-key: "your-openai-key"
+  supabase-url: "https://your-project.supabase.co"
+  supabase-key: "your-supabase-key"
+  deepseek-api-key: "your-deepseek-key"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tackle4loss-cluster-pipeline
+spec:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cluster-pipeline
+            image: tackle4loss-pipeline:prod
+            command: ["python", "cluster_pipeline.py"]
+            env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tackle4loss-secrets
+                  key: openai-api-key
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: tackle4loss-secrets
+                  key: supabase-url
+            - name: SUPABASE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tackle4loss-secrets
+                  key: supabase-key
+          restartPolicy: OnFailure

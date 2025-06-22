@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # Main content extraction pipeline
+  pipeline:
+    build: .
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    volumes:
+      - .:/app
+      - pipeline_cache:/app/.cache
+    command: python cleanup_pipeline.py
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Article clustering pipeline
+  cluster:
+    build: .
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    volumes:
+      - .:/app
+      - cluster_cache:/app/.cache
+    command: python cluster_pipeline.py
+    restart: unless-stopped
+    depends_on:
+      - pipeline
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Development service with interactive shell
+  dev:
+    build: .
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    volumes:
+      - .:/app
+      - dev_cache:/app/.cache
+    command: bash
+    stdin_open: true
+    tty: true
+
+  # Test runner service
+  test:
+    build: .
+    environment:
+      - OPENAI_API_KEY=sk-test-key
+      - SUPABASE_URL=https://test.supabase.co
+      - SUPABASE_KEY=test-key
+      - DEEPSEEK_API_KEY=test-key
+    volumes:
+      - .:/app
+    command: python dev.py all-tests
+    profiles:
+      - testing
+
+volumes:
+  pipeline_cache:
+  cluster_cache:
+  dev_cache:

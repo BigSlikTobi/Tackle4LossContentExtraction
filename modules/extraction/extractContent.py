@@ -8,6 +8,7 @@ import json
 import asyncio
 import time
 import random
+from urllib.parse import unquote
 from crawl4ai import AsyncWebCrawler, CacheMode
 from crawl4ai.extraction_strategy import LLMExtractionStrategy
 from core.db.fetch_unprocessed_articles import get_unprocessed_articles
@@ -125,6 +126,8 @@ async def main():
         article_id = article["id"]
         # Normalize URL: use article["url"] if it starts with http; otherwise, prepend "https://www."
         url = article["url"]
+        # URL decode the URL in case it's been URL-encoded
+        url = unquote(url)
         article_url = url if url.startswith("http") else "https://www." + url
         print(f"Extracting content from {article_url}")
         try:

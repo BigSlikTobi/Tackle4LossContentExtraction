@@ -96,10 +96,13 @@ def store_embedding(article_id: int, embedding: List[float]) -> None:
     """
     Store the embedding in the ArticleVector table
     """
-    if supabase_client is None and not IS_CI:
+    # Check CI status dynamically for tests
+    is_ci = os.getenv("CI") == 'true' or os.getenv("GITHUB_ACTIONS") == 'true'
+    
+    if supabase_client is None and not is_ci:
         logger.error("Supabase client not initialized. Cannot store embedding for article_id %s.", article_id)
         return
-    elif supabase_client is None and IS_CI:
+    elif supabase_client is None and is_ci:
         logger.warning("Supabase client not initialized in CI. Skipping embedding storage for article_id %s.", article_id)
         return
 
