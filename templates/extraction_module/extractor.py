@@ -1,7 +1,13 @@
 """
-{MODULE_NAME} Content Extractor
+Example Content Extractor
 
-This module provides content extraction functionality for {DESCRIPTION}.
+This module provides content extraction functionality as a template example.
+
+Template Usage:
+1. Replace 'Example' with your module name throughout this file
+2. Implement the actual extraction logic in the extract() method
+3. Update get_supported_domains() with your target domains
+4. Customize metadata extraction and text cleaning as needed
 """
 
 from abc import ABC, abstractmethod
@@ -9,7 +15,10 @@ from typing import Dict, Any, List, Optional
 import logging
 from urllib.parse import urlparse
 
-from .config import {MODULE_NAME}Config
+try:
+    from .config import ExampleConfig
+except ImportError:
+    from config import ExampleConfig
 
 
 logger = logging.getLogger(__name__)
@@ -34,22 +43,29 @@ class BaseExtractor(ABC):
         pass
 
 
-class {MODULE_NAME}Extractor(BaseExtractor):
+class ExampleExtractor(BaseExtractor):
     """
-    Content extractor for {DESCRIPTION}.
+    Example content extractor template.
     
-    This extractor handles content extraction from specific website types
-    and provides structured data output.
+    This extractor serves as a template for creating new extractors.
+    Replace 'Example' with your actual extractor name and implement
+    the extraction logic for your specific use case.
+    
+    Template Usage:
+    1. Rename this class to match your target (e.g., ESPNExtractor)
+    2. Update get_supported_domains() with your target domains
+    3. Implement actual extraction logic in extract()
+    4. Customize _extract_metadata() for your needs
     """
     
-    def __init__(self, config: Optional[{MODULE_NAME}Config] = None):
+    def __init__(self, config: Optional[ExampleConfig] = None):
         """
         Initialize the extractor.
         
         Args:
             config: Configuration object for the extractor
         """
-        self.config = config or {MODULE_NAME}Config()
+        self.config = config or ExampleConfig()
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
     
     def extract(self, url: str) -> Dict[str, Any]:
@@ -79,6 +95,14 @@ class {MODULE_NAME}Extractor(BaseExtractor):
             
             # TODO: Implement actual extraction logic
             # This is a template - replace with your implementation
+            # 
+            # Example implementation steps:
+            # 1. Make HTTP request to URL
+            # 2. Parse HTML with BeautifulSoup
+            # 3. Extract title, content, author, date
+            # 4. Clean and normalize text
+            # 5. Extract metadata
+            
             extracted_data = {
                 'url': url,
                 'title': '',
@@ -125,6 +149,9 @@ class {MODULE_NAME}Extractor(BaseExtractor):
         
         Returns:
             List of domain names this extractor supports
+            
+        Template Note:
+            Replace these example domains with your actual target domains
         """
         # TODO: Replace with actual supported domains
         return [
@@ -164,13 +191,17 @@ class {MODULE_NAME}Extractor(BaseExtractor):
             
         Returns:
             Dictionary containing metadata
+            
+        Template Note:
+            Implement metadata extraction based on your target site's structure
         """
         metadata = {}
         
         # TODO: Implement metadata extraction
-        # - Open Graph tags
-        # - Twitter Card tags
-        # - Schema.org markup
-        # - Meta tags
+        # Example implementations:
+        # - Open Graph tags: soup.find('meta', property='og:title')
+        # - Twitter Card tags: soup.find('meta', attrs={'name': 'twitter:title'})
+        # - Schema.org markup: soup.find('script', type='application/ld+json')
+        # - Standard meta tags: soup.find('meta', attrs={'name': 'description'})
         
         return metadata

@@ -1,0 +1,41 @@
+[tool.pytest.ini_options]
+# pytest configuration for Tackle4Loss Content Extraction
+
+# Test discovery
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Ignore non-test files that might be collected
+addopts = [
+    "--verbose",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings",
+    "--ignore=debug_test.py",
+    "--ignore=dev.py", 
+    "--ignore=cleanup_pipeline.py",
+    "--ignore=cluster_pipeline.py",
+    "--ignore=run_pipeline_tests.py",
+    "--ignore=test.sh",
+]
+
+# Test markers
+markers = [
+    "integration: marks tests as integration tests (may require external services)",
+    "unit: marks tests as unit tests (fast, no external dependencies)",
+    "slow: marks tests as slow running",
+    "db: marks tests that require database access",
+    "llm: marks tests that require LLM API access",
+]
+
+# Coverage settings
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# Minimum coverage threshold
+# Can be uncommented when test coverage improves
+# --cov-fail-under=80

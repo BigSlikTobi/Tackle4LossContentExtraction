@@ -1,7 +1,7 @@
 """
-Utility functions for {MODULE_NAME} Content Extractor
+Utility functions for Example Content Extractor
 
-Author: {AUTHOR}
+Author: Tackle4Loss Development Team
 """
 
 import re

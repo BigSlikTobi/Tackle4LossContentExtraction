@@ -38,3 +38,13 @@ coverage.xml
 
 # macOS specific files
 .DS_Store
+
+# Debug files and temporary scripts
+debug_*.py
+temp_*.py
+scratch_*.py
+
+# Test artifacts
+.pytest_cache/
+test-results/
+bandit-report.json

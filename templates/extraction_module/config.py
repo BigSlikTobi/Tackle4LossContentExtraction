@@ -1,7 +1,12 @@
 """
-Configuration for {MODULE_NAME} Content Extractor
+Configuration for Example Content Extractor
 
-Author: {AUTHOR}
+Author: Tackle4Loss Development Team
+
+This is a template configuration file. To customize:
+1. Replace 'Example' with your module name
+2. Adjust default values as needed
+3. Add module-specific configuration options
 """
 
 from dataclasses import dataclass
@@ -9,12 +14,17 @@ from typing import Dict, Any, List, Optional
 
 
 @dataclass
-class {MODULE_NAME}Config:
+class ExampleConfig:
     """
-    Configuration class for {MODULE_NAME} extractor.
+    Configuration class for Example extractor.
     
     This class defines all configurable parameters for the content extraction
     process, including timeouts, retry logic, and extraction settings.
+    
+    Template Usage:
+    - Replace 'Example' with your actual extractor name
+    - Modify default values as needed for your use case
+    - Add domain-specific configuration options
     """
     
     # Request settings
@@ -30,10 +40,10 @@ class {MODULE_NAME}Config:
     max_content_length: int = 50000
     
     # Supported content types
-    supported_content_types: List[str] = None
+    supported_content_types: Optional[List[str]] = None
     
     # Custom headers
-    custom_headers: Dict[str, str] = None
+    custom_headers: Optional[Dict[str, str]] = None
     
     # Extraction parameters
     extract_images: bool = True
@@ -110,11 +120,11 @@ class {MODULE_NAME}Config:
 
 
 # Default configuration instance
-DEFAULT_CONFIG = {MODULE_NAME}Config()
+DEFAULT_CONFIG = ExampleConfig()
 
 
 # Configuration presets for different use cases
-FAST_CONFIG = {MODULE_NAME}Config(
+FAST_CONFIG = ExampleConfig(
     timeout=10,
     max_retries=1,
     extract_images=False,
@@ -122,7 +132,7 @@ FAST_CONFIG = {MODULE_NAME}Config(
     extract_metadata=False
 )
 
-COMPREHENSIVE_CONFIG = {MODULE_NAME}Config(
+COMPREHENSIVE_CONFIG = ExampleConfig(
     timeout=60,
     max_retries=5,
     retry_delay=2.0,
