@@ -295,7 +295,7 @@ docker-compose run --rm app python -c "from cleanup_pipeline import main; help(m
 
 ## Testing
 
-This project includes a comprehensive testing infrastructure to ensure pipeline reliability and catch issues before they reach production.
+This project includes a comprehensive testing infrastructure to ensure pipeline reliability and catch issues before they reach production. See [TESTING.md](TESTING.md) for the full guide. A manual acceptance test for the cluster count fix is documented in [ACCEPTANCE_TESTS.md](ACCEPTANCE_TESTS.md).
 
 ### 🚀 Quick Start - Testing Commands
 
