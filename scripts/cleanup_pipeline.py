@@ -15,10 +15,11 @@ import traceback  # Import traceback for detailed error logging
 from datetime import datetime, timedelta, UTC
 from typing import Dict, Any, List, Set, Optional
 
-# Add the parent directory to the Python path to allow for absolute imports
-# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# Simpler approach assuming structure:
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add src directory to Python path
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(PROJECT_ROOT / "src"))
 
 
 # Import the necessary modules

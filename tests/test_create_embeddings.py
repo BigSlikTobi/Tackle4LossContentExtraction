@@ -4,7 +4,7 @@ import sys
 import os
 
 # Adjust path to import module from parent directory
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
 import httpx # Import httpx for mocking request/response
 

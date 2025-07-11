@@ -3,7 +3,7 @@ import sys
 from types import SimpleNamespace
 from unittest import mock
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
 db_access = None
 

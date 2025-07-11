@@ -5,7 +5,7 @@ import os
 import logging
 
 # Adjust path to import module from the project root
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
 # Modules to be tested or that contain components to be mocked
 # Note: The client name in create_embeddings is now openai_client_instance

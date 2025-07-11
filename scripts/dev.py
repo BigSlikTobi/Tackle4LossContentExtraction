@@ -9,9 +9,9 @@ import subprocess
 import argparse
 from pathlib import Path
 
-# Get project root
-PROJECT_ROOT = Path(__file__).parent.absolute()
-sys.path.insert(0, str(PROJECT_ROOT))
+# Get project root and add src directory to PYTHONPATH
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 def run_command(cmd, description, cwd=None):
     """Run a command and return success status."""
@@ -32,28 +32,28 @@ def run_command(cmd, description, cwd=None):
 def quick_test():
     """Run quick health checks."""
     return run_command(
-        f"cd {PROJECT_ROOT} && python run_pipeline_tests.py --quick",
+        f"cd {PROJECT_ROOT} && python scripts/run_pipeline_tests.py --quick",
         "Quick pipeline health check"
     )
 
 def full_test():
     """Run comprehensive tests."""
     return run_command(
-        f"cd {PROJECT_ROOT} && python run_pipeline_tests.py",
+        f"cd {PROJECT_ROOT} && python scripts/run_pipeline_tests.py",
         "Full pipeline test suite"
     )
 
 def run_cleanup_pipeline():
     """Run the cleanup pipeline."""
     return run_command(
-        f"cd {PROJECT_ROOT} && python cleanup_pipeline.py",
+        f"cd {PROJECT_ROOT} && python scripts/cleanup_pipeline.py",
         "Cleanup pipeline execution"
     )
 
 def run_cluster_pipeline():
     """Run the cluster pipeline."""
     return run_command(
-        f"cd {PROJECT_ROOT} && python cluster_pipeline.py",
+        f"cd {PROJECT_ROOT} && python scripts/cluster_pipeline.py",
         "Cluster pipeline execution"
     )
 
@@ -67,10 +67,10 @@ def run_all_tests():
 def check_syntax():
     """Check Python syntax for all pipeline files."""
     files_to_check = [
-        "cleanup_pipeline.py",
-        "cluster_pipeline.py",
-        "core/clustering/cluster_manager.py",
-        "modules/processing/article_processor.py"
+        "scripts/cleanup_pipeline.py",
+        "scripts/cluster_pipeline.py",
+        "src/core/clustering/cluster_manager.py",
+        "src/modules/processing/article_processor.py"
     ]
     
     all_good = True
@@ -91,7 +91,7 @@ def check_syntax():
 def lint_code():
     """Run basic linting on pipeline files."""
     return run_command(
-        f"cd {PROJECT_ROOT} && python -m flake8 cleanup_pipeline.py cluster_pipeline.py core/ modules/ --max-line-length=120 --ignore=E501,W503",
+        f"cd {PROJECT_ROOT} && python -m flake8 scripts/cleanup_pipeline.py scripts/cluster_pipeline.py src/core/ src/modules/ --max-line-length=120 --ignore=E501,W503",
         "Code linting"
     )
 
