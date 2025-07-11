@@ -42,7 +42,7 @@ jobs:
           python -m playwright install --with-deps chromium
           
       - name: Run article cleanup pipeline
-        run: python cleanup_pipeline.py
+        run: python scripts/cleanup_pipeline.py
 
       - name: Run article cluster pipeline
-        run: python cluster_pipeline.py
+        run: python scripts/cluster_pipeline.py
