@@ -22,11 +22,15 @@ This project provides a robust, modular pipeline for extracting, cleaning, embed
 
 ```
 Tackle4LossContentExtraction/
-├── cleanup_pipeline.py         # Main pipeline for extraction, cleaning, embedding, DB update
-├── cluster_pipeline.py         # Main pipeline for clustering articles
-├── dev.py                      # Development helper script with shortcuts
-├── run_pipeline_tests.py       # Comprehensive pipeline test runner
-├── test.sh                     # Shell script shortcuts for testing
+├── scripts/                    # Pipeline entry points and dev tools
+│   ├── cleanup_pipeline.py
+│   ├── cluster_pipeline.py
+│   ├── dev.py
+│   ├── run_pipeline_tests.py
+│   └── test.sh
+├── src/                        # Core library code
+│   ├── core/                   # Database and clustering logic
+│   └── modules/                # Extraction and processing modules
 ├── requirements.txt            # Python dependencies
 ├── requirements.in             # Pinned dependency source file
 ├── README.md                   # Project documentation with testing guide
@@ -42,12 +46,12 @@ Tackle4LossContentExtraction/
 ├── templates/                  # Project templates for new modules
 │   └── extraction_module/      # Template for new extraction modules
 │
-├── core/                      # Core business logic
+├── src/core/                  # Core business logic
 │   ├── clustering/            # Clustering logic and vector utilities
 │   ├── db/                    # Database access and update logic
 │   └── utils/                 # Embedding, LLM initialization, and helpers
 │
-├── modules/                   # Feature-specific processing modules
+├── src/modules/               # Feature-specific processing modules
 │   ├── clustering/            # Clustering process scripts
 │   ├── extraction/            # Content extraction and cleaning scripts
 │   └── processing/            # Article processing orchestration
@@ -58,6 +62,9 @@ Tackle4LossContentExtraction/
 │   ├── test_cleanup_pipeline_integration.py  # Cleanup pipeline integration
 │   ├── test_cluster_pipeline_integration.py  # Cluster pipeline integration
 │   └── ...                    # Additional component tests
+│
+├── sql/                       # SQL helper scripts
+│   └── recalculate_all_cluster_member_counts.sql
 │
 ├── k8s/                       # Kubernetes deployment configuration
 │   └── deployment.yml         # Production deployment manifest
@@ -130,10 +137,10 @@ cp .env.example .env
 docker-compose build
 
 # Run cleanup pipeline
-docker-compose run --rm app python cleanup_pipeline.py
+docker-compose run --rm app python scripts/cleanup_pipeline.py
 
 # Run clustering pipeline
-docker-compose run --rm app python cluster_pipeline.py
+docker-compose run --rm app python scripts/cluster_pipeline.py
 
 # Run tests
 docker-compose run --rm app python -m pytest
@@ -148,14 +155,14 @@ docker-compose run --rm app bash
 docker build -t tackle4loss .
 
 # Run with environment file
-docker run --rm -it --env-file .env tackle4loss python cleanup_pipeline.py
+docker run --rm -it --env-file .env tackle4loss python scripts/cleanup_pipeline.py
 
 # Run with individual environment variables
 docker run --rm -it \
   -e OPENAI_API_KEY="your_key" \
   -e SUPABASE_URL="your_url" \
   -e SUPABASE_KEY="your_key" \
-  tackle4loss python cleanup_pipeline.py
+  tackle4loss python scripts/cleanup_pipeline.py
 ```
 
 ### 📋 Environment Variables Reference
@@ -193,10 +200,10 @@ Make sure your virtual environment is activated and all dependencies are install
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Run main content extraction & embedding pipeline
-python cleanup_pipeline.py
+python scripts/cleanup_pipeline.py
 
 # Run article clustering pipeline
-python cluster_pipeline.py
+python scripts/cluster_pipeline.py
 ```
 
 ### 🐳 Running with Docker
@@ -205,20 +212,20 @@ Use Docker Compose for the easiest experience:
 
 ```bash
 # Run main content extraction & embedding pipeline
-docker-compose run --rm app python cleanup_pipeline.py
+docker-compose run --rm app python scripts/cleanup_pipeline.py
 
 # Run article clustering pipeline
-docker-compose run --rm app python cluster_pipeline.py
+docker-compose run --rm app python scripts/cluster_pipeline.py
 
 # Run both pipelines in sequence
-docker-compose run --rm app bash -c "python cleanup_pipeline.py && python cluster_pipeline.py"
+docker-compose run --rm app bash -c "python scripts/cleanup_pipeline.py && python scripts/cluster_pipeline.py"
 ```
 
 **Alternative Docker commands:**
 ```bash
 # Using direct docker run commands
-docker run --rm -it --env-file .env tackle4loss python cleanup_pipeline.py
-docker run --rm -it --env-file .env tackle4loss python cluster_pipeline.py
+docker run --rm -it --env-file .env tackle4loss python scripts/cleanup_pipeline.py
+docker run --rm -it --env-file .env tackle4loss python scripts/cluster_pipeline.py
 ```
 
 ### 🧪 Running Tests
@@ -238,7 +245,7 @@ docker-compose run --rm app python -m pytest tests/ -v
 **Virtual Environment:**
 ```bash
 # Run development helper
-python dev.py quick-test
+python scripts/dev.py quick-test
 
 # Interactive Python shell with project modules
 python -c "from cleanup_pipeline import main; help(main)"
@@ -250,7 +257,7 @@ python -c "from cleanup_pipeline import main; help(main)"
 docker-compose run --rm app bash
 
 # Run development commands in container
-docker-compose run --rm app python dev.py quick-test
+docker-compose run --rm app python scripts/dev.py quick-test
 
 # Debug with container shell
 docker-compose run --rm app python -c "from cleanup_pipeline import main; help(main)"
@@ -275,12 +282,12 @@ docker-compose run --rm app python -c "from cleanup_pipeline import main; help(m
 
 ## Module Structure & Key Scripts
 
-- **`cleanup_pipeline.py`**: Orchestrates fetching, extraction, cleaning, embedding, and DB update for new articles.
-- **`modules/extraction/extractContent.py`**: Extracts main content from articles using a web crawler and LLM.
-- **`modules/extraction/cleanContent.py`**: Cleans and structures extracted content, extracts metadata, and analyzes content type.
-- **`core/utils/create_embeddings.py`**: Generates and stores vector embeddings using OpenAI.
-- **`cluster_pipeline.py`**: Runs the clustering process and fixes cluster counts.
-- **`modules/clustering/cluster_articles.py`**: Handles the clustering logic for articles.
+- **`scripts/cleanup_pipeline.py`**: Orchestrates fetching, extraction, cleaning, embedding, and DB update for new articles.
+- **`src/modules/extraction/extractContent.py`**: Extracts main content from articles using a web crawler and LLM.
+- **`src/modules/extraction/cleanContent.py`**: Cleans and structures extracted content, extracts metadata, and analyzes content type.
+- **`src/core/utils/create_embeddings.py`**: Generates and stores vector embeddings using OpenAI.
+- **`scripts/cluster_pipeline.py`**: Runs the clustering process and fixes cluster counts.
+- **`src/modules/clustering/cluster_articles.py`**: Handles the clustering logic for articles.
 
 ## Database Schema (Key Tables)
 - `SourceArticles`: Stores articles and their metadata. Fields include `id`, `url`, `Content`, `Author`, `contentType`, `isProcessed`, `cluster_id`, etc.
@@ -288,9 +295,9 @@ docker-compose run --rm app python -c "from cleanup_pipeline import main; help(m
 - `clusters`: Stores cluster centroids and member counts.
 
 ## Customization & Extensibility
-- **Model Selection:** You can configure which LLMs to use for extraction and analysis via environment variables or by editing the code in `core/utils/LLM_init.py`.
-- **Thresholds:** Clustering similarity thresholds can be adjusted in `cluster_pipeline.py` and `modules/clustering/cluster_articles.py`.
-- **Embedding Dimensions:** The system automatically handles dimension normalization between different embedding models. The database expects 768-dimensional vectors, while OpenAI's "text-embedding-3-small" model produces 1536-dimensional vectors. This normalization is handled in `core/clustering/db_access.py`.
+- **Model Selection:** You can configure which LLMs to use for extraction and analysis via environment variables or by editing the code in `src/core/utils/LLM_init.py`.
+- **Thresholds:** Clustering similarity thresholds can be adjusted in `scripts/cluster_pipeline.py` and `src/modules/clustering/cluster_articles.py`.
+- **Embedding Dimensions:** The system automatically handles dimension normalization between different embedding models. The database expects 768-dimensional vectors, while OpenAI's "text-embedding-3-small" model produces 1536-dimensional vectors. This normalization is handled in `src/core/clustering/db_access.py`.
 - **Retry/Timeouts:** Extraction and cleaning scripts have built-in retry and timeout logic for robustness.
 
 ## Testing
@@ -302,7 +309,7 @@ This project includes a comprehensive testing infrastructure to ensure pipeline 
 #### Fast Health Checks (30 seconds)
 ```bash
 # Check if pipelines can start without errors
-python dev.py quick-test
+python scripts/dev.py quick-test
 # or
 ./test.sh quick
 ```
@@ -310,7 +317,7 @@ python dev.py quick-test
 #### Comprehensive Pipeline Tests (2-3 minutes)
 ```bash
 # Test pipeline logic with mocked dependencies
-python dev.py test
+python scripts/dev.py test
 # or
 ./test.sh test
 ```
@@ -318,7 +325,7 @@ python dev.py test
 #### Full Test Suite (5+ minutes)
 ```bash
 # Run all tests including integration tests
-python dev.py all-tests
+python scripts/dev.py all-tests
 # or
 ./test.sh all
 ```
@@ -326,7 +333,7 @@ python dev.py all-tests
 #### CI/CD Pipeline Check
 ```bash
 # Complete verification (syntax + lint + tests)
-python dev.py ci
+python scripts/dev.py ci
 # or
 ./test.sh ci
 ```
@@ -415,14 +422,14 @@ Current test coverage includes:
 
 #### Development Helper (`dev.py`)
 ```bash
-python dev.py quick-test    # Fast health check
-python dev.py test          # Pipeline tests
-python dev.py all-tests     # Full pytest suite
-python dev.py cleanup       # Run cleanup pipeline
-python dev.py cluster       # Run cluster pipeline
-python dev.py syntax        # Check Python syntax
-python dev.py check         # Syntax + quick test
-python dev.py ci            # Complete CI pipeline
+python scripts/dev.py quick-test    # Fast health check
+python scripts/dev.py test          # Pipeline tests
+python scripts/dev.py all-tests     # Full pytest suite
+python scripts/dev.py cleanup       # Run cleanup pipeline
+python scripts/dev.py cluster       # Run cluster pipeline
+python scripts/dev.py syntax        # Check Python syntax
+python scripts/dev.py check         # Syntax + quick test
+python scripts/dev.py ci            # Complete CI pipeline
 ```
 
 #### Shell Shortcuts (`test.sh`)
@@ -435,9 +442,9 @@ python dev.py ci            # Complete CI pipeline
 
 #### Test Runner (`run_pipeline_tests.py`)
 ```bash
-python run_pipeline_tests.py --quick          # Health check only
-python run_pipeline_tests.py --pattern health # Run health tests only
-python run_pipeline_tests.py --save-output results.txt # Save detailed output
+python scripts/run_pipeline_tests.py --quick          # Health check only
+python scripts/run_pipeline_tests.py --pattern health # Run health tests only
+python scripts/run_pipeline_tests.py --save-output results.txt # Save detailed output
 ```
 
 ### 🐛 Original Bug Fix Verification
@@ -592,7 +599,7 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     volumes:
       - .:/app
-    command: python cleanup_pipeline.py
+    command: python scripts/cleanup_pipeline.py
   
   cluster:
     build: .
@@ -602,7 +609,7 @@ services:
       - SUPABASE_KEY=${SUPABASE_KEY}
     volumes:
       - .:/app
-    command: python cluster_pipeline.py
+    command: python scripts/cluster_pipeline.py
 ```
 
 #### Production Deployment
@@ -632,15 +639,15 @@ This project follows a standardized template structure for Python ML/AI pipeline
 #### Template Features
 
 **📦 Modular Architecture:**
-- `core/` - Core business logic and utilities
-- `modules/` - Feature-specific processing modules  
+- `src/core/` - Core business logic and utilities
+- `src/modules/` - Feature-specific processing modules
 - `tests/` - Comprehensive testing infrastructure
 - Development tools and CI/CD configuration
 
-**🛠️ Development Tools:**
-- `dev.py` - Development helper with shortcuts
-- `test.sh` - Shell script for common tasks
-- `run_pipeline_tests.py` - Advanced test runner
+-**🛠️ Development Tools:**
+- `scripts/dev.py` - Development helper with shortcuts
+- `scripts/test.sh` - Shell script for common tasks
+- `scripts/run_pipeline_tests.py` - Advanced test runner
 - Pre-commit hooks and linting configuration
 
 **🔧 Configuration Management:**
@@ -673,7 +680,7 @@ git commit -m "Initial commit from template"
 # 1. Update README.md with your project details
 # 2. Modify requirements.txt for your dependencies
 # 3. Update environment variables in .env.example
-# 4. Customize pipeline logic in modules/
+# 4. Customize pipeline logic in src/modules/
 # 5. Update tests for your specific functionality
 ```
 
@@ -737,7 +744,7 @@ This project includes standardized templates and enhanced documentation features
 **✅ Extraction Module Template:**
 ```bash
 # Create new extraction module from template
-cp -r templates/extraction_module modules/extraction/my_new_extractor
+cp -r templates/extraction_module src/modules/extraction/my_new_extractor
 
 # Update placeholders
 # Replace {MODULE_NAME} with your module name
@@ -794,7 +801,7 @@ cp -r templates/extraction_module modules/extraction/my_new_extractor
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python cleanup_pipeline.py
+python scripts/cleanup_pipeline.py
 
 # Docker development
 docker-compose up pipeline

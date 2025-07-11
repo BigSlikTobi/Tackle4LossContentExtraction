@@ -9,9 +9,11 @@ import subprocess
 import argparse
 import time
 from typing import List, Tuple
+from pathlib import Path
 
-# Add the parent directory to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add src directory to sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 def run_test_suite(test_pattern: str = None, verbose: bool = True) -> Tuple[bool, str]:
     """

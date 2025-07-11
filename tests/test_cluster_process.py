@@ -4,7 +4,7 @@ import os
 from unittest import mock
 import numpy as np
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
 
 def test_run_clustering_process_creates_cluster(monkeypatch):

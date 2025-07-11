@@ -6,9 +6,11 @@ This file has no business logic and acts as a clean workflow runner.
 import logging
 import os
 import sys
+from pathlib import Path
 
-# Add root directory to Python path to allow importing core modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+# Add src directory to Python path to allow importing project modules
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(PROJECT_ROOT / "src"))
 
 from modules.clustering.cluster_articles import run_clustering_process
 from core.clustering.db_access import (

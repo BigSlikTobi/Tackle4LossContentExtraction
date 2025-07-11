@@ -6,7 +6,7 @@ import os
 import logging
 
 # Adjust path to import module from the project root
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
 # Modules to be tested or that contain components to be mocked
 from core.clustering.db_access import (

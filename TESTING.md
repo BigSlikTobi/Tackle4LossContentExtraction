@@ -6,19 +6,19 @@ This document explains how to test the content extraction and clustering pipelin
 
 ### Run Health Checks (Fastest)
 ```bash
-python dev.py quick-test
+python scripts/dev.py quick-test
 ```
 This runs a quick import/syntax check to verify both pipelines can start without crashing.
 
 ### Run Comprehensive Pipeline Tests
 ```bash
-python dev.py test
+python scripts/dev.py test
 ```
 This runs all pipeline-specific tests including health checks, functional tests, and integration tests.
 
 ### Run All Tests
 ```bash
-python dev.py all-tests
+python scripts/dev.py all-tests
 ```
 This runs the entire pytest suite (all 69+ tests).
 
@@ -44,42 +44,42 @@ This runs the entire pytest suite (all 69+ tests).
 
 ### Test Runners
 
-- **`run_pipeline_tests.py`** - Comprehensive test runner for pipeline-specific tests
-- **`dev.py`** - Development helper with shortcuts for common tasks
+- **`scripts/run_pipeline_tests.py`** - Comprehensive test runner for pipeline-specific tests
+- **`scripts/dev.py`** - Development helper with shortcuts for common tasks
 
 ## When to Run Tests
 
 ### Before Making Changes
 ```bash
-python dev.py quick-test
+python scripts/dev.py quick-test
 ```
 Baseline check to ensure your environment is working.
 
 ### After Making Changes
 ```bash
-python dev.py check
+python scripts/dev.py check
 ```
 Runs syntax check + quick test to catch basic issues.
 
 ### Before Committing
 ```bash
-python dev.py ci
+python scripts/dev.py ci
 ```
 Runs full CI suite: syntax check + linting + all pipeline tests.
 
 ### Before Deploying
 ```bash
-python dev.py all-tests
+python scripts/dev.py all-tests
 ```
 Runs the complete test suite to ensure nothing is broken.
 
 ## Development Workflow
 
 1. **Make your changes** to pipeline code
-2. **Quick check**: `python dev.py quick-test`
-3. **Functional test**: `python dev.py test`
-4. **Manual test**: `python dev.py cleanup` or `python dev.py cluster`
-5. **Full verification**: `python dev.py all-tests`
+2. **Quick check**: `python scripts/dev.py quick-test`
+3. **Functional test**: `python scripts/dev.py test`
+4. **Manual test**: `python scripts/dev.py cleanup` or `python scripts/dev.py cluster`
+5. **Full verification**: `python scripts/dev.py all-tests`
 
 ## Specific Test Categories
 
@@ -112,7 +112,7 @@ Tests use dummy credentials and mock external dependencies, so they can run in a
 
 ### Tests fail with import errors
 ```bash
-python dev.py syntax
+python scripts/dev.py syntax
 ```
 Check for Python syntax errors in pipeline files.
 
@@ -121,13 +121,13 @@ Check for Python syntax errors in pipeline files.
 2. Verify database connectivity
 3. Run actual pipelines in test mode:
    ```bash
-   python dev.py cleanup
-   python dev.py cluster
+   python scripts/dev.py cleanup
+   python scripts/dev.py cluster
    ```
 
 ### Need more verbose output
 ```bash
-python run_pipeline_tests.py --pattern health
+python scripts/run_pipeline_tests.py --pattern health
 python -m pytest tests/test_pipeline_health_checks.py -v -s
 ```
 
@@ -136,11 +136,11 @@ python -m pytest tests/test_pipeline_health_checks.py -v -s
 1. **For pipeline logic**: Add to `test_pipeline_functional.py`
 2. **For health checks**: Add to `test_pipeline_health_checks.py`
 3. **For integration**: Add to existing integration test files
-4. **Update test runner**: Add new test files to `run_pipeline_tests.py` if needed
+4. **Update test runner**: Add new test files to `scripts/run_pipeline_tests.py` if needed
 
 ## Continuous Integration
 
-The `dev.py ci` command runs a complete check suitable for CI environments:
+The `scripts/dev.py ci` command runs a complete check suitable for CI environments:
 - Syntax validation
 - Code linting
 - Quick health checks

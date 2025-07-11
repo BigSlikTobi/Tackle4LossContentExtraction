@@ -5,7 +5,7 @@ import sys
 import os
 
 # Adjust path to import module from parent directory
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
 from modules.extraction.extractContent import extract_main_content #, main as run_main_extraction
 # Importing litellm directly for mocking its specific errors if needed, though crawl4ai might wrap them.
