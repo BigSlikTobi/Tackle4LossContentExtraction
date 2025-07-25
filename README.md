@@ -302,7 +302,7 @@ docker-compose run --rm app python -c "from cleanup_pipeline import main; help(m
 
 ## Testing
 
-This project includes a comprehensive testing infrastructure to ensure pipeline reliability and catch issues before they reach production. See [TESTING.md](TESTING.md) for the full guide. A manual acceptance test for the cluster count fix is documented in [ACCEPTANCE_TESTS.md](ACCEPTANCE_TESTS.md).
+This project includes a comprehensive testing infrastructure to ensure pipeline reliability and catch issues before they reach production. See [TESTING.md](TESTING.md) for the full guide. A summary of the manual acceptance test for the cluster count fix is included below.
 
 ### 🚀 Quick Start - Testing Commands
 
@@ -472,6 +472,21 @@ The testing infrastructure specifically verifies the fix for the URL encoding bu
 - Component tests: `test_<component_name>.py`
 
 Run the test suite regularly to catch issues early:
+
+### Manual Acceptance Test for `fix_cluster_counts.py`
+
+1. **Prepare sample data** in Supabase:
+   - Cluster with an incorrect `member_count` value
+   - An empty cluster
+   - A cluster with a single article
+   - One correctly counted cluster
+2. **Run the script:**
+   ```bash
+   python modules/clustering/fix_cluster_counts.py
+   ```
+3. **Review the logs** for updated counts and any deleted clusters.
+4. **Verify the database** to ensure counts are corrected and obsolete clusters are removed or articles unassigned.
+
 
 ## CI/CD Pipeline & Docker Support
 
