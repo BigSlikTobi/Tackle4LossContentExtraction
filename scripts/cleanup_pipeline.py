@@ -22,9 +22,23 @@ src_path = project_root / "src"
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(src_path))
 
-from src.core.db.fetch_unprocessed_articles import get_unprocessed_articles
-from src.core.utils.lock_manager import acquire_lock, release_lock # Import lock functions
-from src.modules.processing.article_processor import process_article 
+# Import modules - check if we're in CI environment with PYTHONPATH set to root
+if os.getenv('PYTHONPATH') == '.' or os.getenv('CI') == 'true':
+    # In CI environment, imports are relative to project root
+    from src.core.db.fetch_unprocessed_articles import get_unprocessed_articles
+    from src.core.utils.lock_manager import acquire_lock, release_lock
+    from src.modules.processing.article_processor import process_article
+else:
+    # In local environment, imports are relative to src directory
+    try:
+        from core.db.fetch_unprocessed_articles import get_unprocessed_articles
+        from core.utils.lock_manager import acquire_lock, release_lock
+        from modules.processing.article_processor import process_article
+    except ImportError:
+        # Fallback to src. prefix if relative imports fail
+        from src.core.db.fetch_unprocessed_articles import get_unprocessed_articles
+        from src.core.utils.lock_manager import acquire_lock, release_lock
+        from src.modules.processing.article_processor import process_article 
 
 # Note: find_similar_articles.py now has fetch_recent_embeddings.
 # We might need a different function here if we want *just* the newly processed ones for some reason
