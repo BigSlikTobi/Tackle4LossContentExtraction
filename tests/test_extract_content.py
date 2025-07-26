@@ -7,7 +7,7 @@ import os
 # Adjust path to import module from parent directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from modules.extraction.extractContent import extract_main_content #, main as run_main_extraction
+from src.modules.extraction.extractContent import extract_main_content #, main as run_main_extraction
 # Importing litellm directly for mocking its specific errors if needed, though crawl4ai might wrap them.
 # For now, we'll assume generic Exception or string checks as per current extractContent.py logic.
 # import litellm
@@ -20,8 +20,8 @@ class MockCrawl4aiResult:
 
 class TestExtractMainContent(unittest.IsolatedAsyncioTestCase): # Use IsolatedAsyncioTestCase for async tests
 
-    @patch('modules.extraction.extractContent.AsyncWebCrawler')
-    @patch('modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock) # Mock sleep
+    @patch('src.modules.extraction.extractContent.AsyncWebCrawler')
+    @patch('src.modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock) # Mock sleep
     async def test_extract_content_success(self, mock_sleep, MockAsyncWebCrawler):
         """Test successful content extraction."""
         mock_crawler_instance = MockAsyncWebCrawler.return_value.__aenter__.return_value
@@ -38,9 +38,9 @@ class TestExtractMainContent(unittest.IsolatedAsyncioTestCase): # Use IsolatedAs
         self.assertEqual(kwargs.get('url'), url)
         self.assertIsNotNone(kwargs.get('extraction_strategy'))
 
-    @patch('modules.extraction.extractContent.AsyncWebCrawler')
+    @patch('src.modules.extraction.extractContent.AsyncWebCrawler')
     @patch('builtins.print') # To check log messages
-    @patch('modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock)
+    @patch('src.modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock)
     async def test_extract_content_arun_generic_exception_first_try(self, mock_sleep, mock_print, MockAsyncWebCrawler):
         """Test generic Exception from arun on the first try, leading to retries and eventual failure."""
         mock_crawler_instance = MockAsyncWebCrawler.return_value.__aenter__.return_value
@@ -80,9 +80,9 @@ class TestExtractMainContent(unittest.IsolatedAsyncioTestCase): # Use IsolatedAs
         self.assertEqual(retry_wait_logs_count, expected_attempts -1)
 
 
-    @patch('modules.extraction.extractContent.AsyncWebCrawler')
+    @patch('src.modules.extraction.extractContent.AsyncWebCrawler')
     @patch('builtins.print')
-    @patch('modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock)
+    @patch('src.modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock)
     async def test_extract_content_insufficient_content_first_try_then_success(self, mock_sleep, mock_print, MockAsyncWebCrawler):
         """Test insufficient content on first try, then success on retry."""
         mock_crawler_instance = MockAsyncWebCrawler.return_value.__aenter__.return_value
@@ -108,9 +108,9 @@ class TestExtractMainContent(unittest.IsolatedAsyncioTestCase): # Use IsolatedAs
                 break
         self.assertTrue(insufficient_log_found)
 
-    @patch('modules.extraction.extractContent.AsyncWebCrawler')
+    @patch('src.modules.extraction.extractContent.AsyncWebCrawler')
     @patch('builtins.print')
-    @patch('modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock)
+    @patch('src.modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock)
     async def test_extract_content_insufficient_content_all_attempts(self, mock_sleep, mock_print, MockAsyncWebCrawler):
         """Test insufficient content on all attempts."""
         mock_crawler_instance = MockAsyncWebCrawler.return_value.__aenter__.return_value
@@ -136,9 +136,9 @@ class TestExtractMainContent(unittest.IsolatedAsyncioTestCase): # Use IsolatedAs
                 break
         self.assertTrue(best_available_log_found)
 
-    @patch('modules.extraction.extractContent.AsyncWebCrawler')
+    @patch('src.modules.extraction.extractContent.AsyncWebCrawler')
     @patch('builtins.print', new_callable=MagicMock) # Using MagicMock for print to check stderr
-    @patch('modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock)
+    @patch('src.modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock)
     async def test_extract_content_outer_exception(self, mock_sleep, mock_print, MockAsyncWebCrawler):
         """Test an exception outside the retry loop (e.g., during AsyncWebCrawler setup)."""
         # Make the AsyncWebCrawler constructor call itself raise an error
@@ -162,9 +162,9 @@ class TestExtractMainContent(unittest.IsolatedAsyncioTestCase): # Use IsolatedAs
         self.assertTrue(stderr_logged, "Error message was not logged to sys.stderr")
 
 
-    @patch('modules.extraction.extractContent.AsyncWebCrawler')
+    @patch('src.modules.extraction.extractContent.AsyncWebCrawler')
     @patch('builtins.print')
-    @patch('modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock)
+    @patch('src.modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock)
     async def test_extract_content_litellm_api_error_handling(self, mock_sleep, mock_print, MockAsyncWebCrawler):
         """Test handling of litellm.APIError leading to retry with modified strategy."""
         mock_crawler_instance = MockAsyncWebCrawler.return_value.__aenter__.return_value

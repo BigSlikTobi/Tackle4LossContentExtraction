@@ -5,20 +5,20 @@ from types import SimpleNamespace
 
 # Assuming core.clustering.db_access is the module path
 # Adjust if db_access is imported differently or sb is initialized elsewhere globally
-# For testing, we might need to patch 'core.clustering.db_access.sb'
+# For testing, we might need to patch 'src.core.clustering.db_access.sb'
 
 # We need to ensure that 'sb' can be patched BEFORE it's used by the module.
 # One way is to ensure the module is loaded AFTER patches, or patch 'sb' where it's defined.
-# For simplicity here, we'll assume 'from core.clustering.db_access import recalculate_cluster_member_counts'
-# works and we can patch 'core.clustering.db_access.sb'.
+# For simplicity here, we'll assume 'from src.core.clustering.db_access import recalculate_cluster_member_counts'
+# works and we can patch 'src.core.clustering.db_access.sb'.
 
 # To make patching sb reliable, especially if it's initialized at import time of db_access,
 # it's often better to ensure db_access is imported *after* the patch is set up,
 # or to have sb dependency-injected. Given current structure, we patch by its module path.
 
 # Import the module and function to be tested
-from core.clustering import db_access # Import the module itself
-from core.clustering.db_access import recalculate_cluster_member_counts, RPCCallFailedError
+from src.core.clustering import db_access # Import the module itself
+from src.core.clustering.db_access import recalculate_cluster_member_counts, RPCCallFailedError
 
 
 # Disable logging for tests unless specifically testing log output
@@ -58,7 +58,7 @@ class TestRecalculateClusterMemberCounts(unittest.TestCase):
             "cluster_B": (5, 0)
         }
 
-        with patch.object(logging.getLogger('core.clustering.db_access'), 'info') as mock_logger_info:
+        with patch.object(logging.getLogger('src.core.clustering.db_access'), 'info') as mock_logger_info:
             result = recalculate_cluster_member_counts()
 
         self.mock_sb.rpc.assert_called_once_with('recalculate_all_cluster_member_counts')
@@ -86,7 +86,7 @@ class TestRecalculateClusterMemberCounts(unittest.TestCase):
 
         expected_discrepancies = {}
 
-        with patch.object(logging.getLogger('core.clustering.db_access'), 'info') as mock_logger_info:
+        with patch.object(logging.getLogger('src.core.clustering.db_access'), 'info') as mock_logger_info:
             result = recalculate_cluster_member_counts()
 
         self.mock_sb.rpc.assert_called_once_with('recalculate_all_cluster_member_counts')
@@ -98,7 +98,7 @@ class TestRecalculateClusterMemberCounts(unittest.TestCase):
         mock_response_obj = SimpleNamespace(data=None) # Simulate no data in response
         self.mock_rpc_call.execute.return_value = mock_response_obj
 
-        with patch.object(logging.getLogger('core.clustering.db_access'), 'error') as mock_logger_error:
+        with patch.object(logging.getLogger('src.core.clustering.db_access'), 'error') as mock_logger_error:
             result = recalculate_cluster_member_counts()
 
         self.assertEqual(result, {})
@@ -109,7 +109,7 @@ class TestRecalculateClusterMemberCounts(unittest.TestCase):
         # For this test, self.mock_rpc_call.execute itself raises the error.
         self.mock_rpc_call.execute.side_effect = RPCCallFailedError("RPC Error")
 
-        with patch.object(logging.getLogger('core.clustering.db_access'), 'error') as mock_logger_error:
+        with patch.object(logging.getLogger('src.core.clustering.db_access'), 'error') as mock_logger_error:
             result = recalculate_cluster_member_counts()
 
         self.assertEqual(result, {})
@@ -137,7 +137,7 @@ class TestRecalculateClusterMemberCounts(unittest.TestCase):
 
         expected_discrepancies = {}
 
-        with patch.object(logging.getLogger('core.clustering.db_access'), 'warning') as mock_logger_warning:
+        with patch.object(logging.getLogger('src.core.clustering.db_access'), 'warning') as mock_logger_warning:
             result = recalculate_cluster_member_counts()
 
         self.assertEqual(result, expected_discrepancies)
@@ -145,7 +145,7 @@ class TestRecalculateClusterMemberCounts(unittest.TestCase):
         mock_logger_warning.assert_any_call("Unexpected format for discrepancy item: cluster_B -> not_a_dict")
 
 if __name__ == '__main__':
-    # Need to make sure imports from core.clustering.db_access are available
+            # Need to make sure imports from src.core.clustering.db_access are available
     # This might require adjusting sys.path if 'tests' is run as the top-level script
     # For example, by adding the project root to sys.path:
     # import sys

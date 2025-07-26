@@ -14,7 +14,7 @@ import logging
 from typing import Dict, List, Tuple, Optional
 from postgrest.exceptions import APIError 
 
-from core.clustering.vector_utils import parse_embedding, normalize_vector_dimensions
+from src.core.clustering.vector_utils import parse_embedding, normalize_vector_dimensions
 
 # Set up logging
 logging.basicConfig(

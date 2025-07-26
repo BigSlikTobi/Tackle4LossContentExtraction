@@ -8,18 +8,18 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src'
 
 import httpx # Import httpx for mocking request/response
 
-from core.utils.create_embeddings import create_embedding, normalize_embedding, store_embedding, create_and_store_embedding
+from src.core.utils.create_embeddings import create_embedding, normalize_embedding, store_embedding, create_and_store_embedding
 from openai import APIError, APITimeoutError, RateLimitError, APIConnectionError, APIStatusError
 import numpy as np
 import logging # Import logging for logger type hint if needed
 
 # Mock the logger used in the module.
-# We are patching 'core.utils.create_embeddings.logger' which is the logger instance.
+# We are patching 'src.core.utils.create_embeddings.logger' which is the logger instance.
 mock_module_logger = MagicMock(spec=logging.Logger)
 
 # Mock the OpenAI client instance globally for relevant tests
-@patch('core.utils.create_embeddings.logger', mock_module_logger)
-@patch('core.utils.create_embeddings.openai_client_instance')
+@patch('src.core.utils.create_embeddings.logger', mock_module_logger)
+@patch('src.core.utils.create_embeddings.openai_client_instance')
 class TestCreateEmbeddingFunction(unittest.TestCase):
 
     def setUp(self):
@@ -44,7 +44,7 @@ class TestCreateEmbeddingFunction(unittest.TestCase):
 
     def test_create_embedding_openai_client_none(self, mock_openai_client_instance):
         """Test create_embedding when openai_client_instance is None."""
-        with patch('core.utils.create_embeddings.openai_client_instance', None):
+        with patch('src.core.utils.create_embeddings.openai_client_instance', None):
             embedding = create_embedding("test text", article_id=100)
             self.assertIsNone(embedding)
             mock_module_logger.error.assert_called_once_with(
@@ -58,7 +58,7 @@ class TestCreateEmbeddingFunction(unittest.TestCase):
         mock_configured_client.api_key = None # Simulate missing API key
         # mock_openai_client_instance is already a mock passed to the test method by @patch
         # We change its behavior for this test or repatch it locally.
-        with patch('core.utils.create_embeddings.openai_client_instance', mock_configured_client):
+        with patch('src.core.utils.create_embeddings.openai_client_instance', mock_configured_client):
             embedding = create_embedding("test text", article_id=101)
             self.assertIsNone(embedding)
             mock_module_logger.error.assert_called_once_with(
@@ -141,7 +141,7 @@ class TestCreateEmbeddingFunction(unittest.TestCase):
             "Unexpected error during embedding creation for article_id %s: %s", 7, error_instance, exc_info=True
         )
 
-@patch('core.utils.create_embeddings.logger', mock_module_logger) # Patch logger for this class too
+@patch('src.core.utils.create_embeddings.logger', mock_module_logger) # Patch logger for this class too
 class TestNormalizeEmbeddingFunction(unittest.TestCase):
     def setUp(self):
         mock_module_logger.reset_mock()
@@ -166,8 +166,8 @@ class TestNormalizeEmbeddingFunction(unittest.TestCase):
 
 
 
-@patch('core.utils.create_embeddings.logger', mock_module_logger)
-@patch('core.utils.create_embeddings.supabase_client')
+@patch('src.core.utils.create_embeddings.logger', mock_module_logger)
+@patch('src.core.utils.create_embeddings.supabase_client')
 class TestStoreEmbeddingFunction(unittest.TestCase):
 
     def setUp(self):
@@ -195,7 +195,7 @@ class TestStoreEmbeddingFunction(unittest.TestCase):
     def test_store_embedding_supabase_client_none(self, mock_supabase_client_instance):
         """Test store_embedding when supabase_client is None."""
         # We patch supabase_client at the module level for this test's scope
-        with patch('core.utils.create_embeddings.supabase_client', None):
+        with patch('src.core.utils.create_embeddings.supabase_client', None):
             store_embedding(111, [0.1,0.2])
             # In CI, we expect a warning, not an error.
             if os.getenv("CI") == 'true' or os.getenv("GITHUB_ACTIONS") == 'true':
@@ -229,10 +229,10 @@ class TestStoreEmbeddingFunction(unittest.TestCase):
             "Error storing embedding for article_id %s: %s", article_id, error_instance, exc_info=True
         )
 
-@patch('core.utils.create_embeddings.logger', mock_module_logger)
-@patch('core.utils.create_embeddings.store_embedding')
-@patch('core.utils.create_embeddings.normalize_embedding')
-@patch('core.utils.create_embeddings.create_embedding')
+@patch('src.core.utils.create_embeddings.logger', mock_module_logger)
+@patch('src.core.utils.create_embeddings.store_embedding')
+@patch('src.core.utils.create_embeddings.normalize_embedding')
+@patch('src.core.utils.create_embeddings.create_embedding')
 class TestCreateAndStoreEmbeddingFunction(unittest.TestCase):
     def setUp(self):
         mock_module_logger.reset_mock()

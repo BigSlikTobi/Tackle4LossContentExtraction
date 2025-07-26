@@ -22,13 +22,13 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT / "src"))
 
-from modules.clustering.cluster_articles import run_clustering_process
-from core.clustering.db_access import (
+from src.modules.clustering.cluster_articles import run_clustering_process
+from src.core.clustering.db_access import (
     recalculate_cluster_member_counts,
     update_old_clusters_status,
     repair_zero_centroid_clusters,
 )
-from core.utils.lock_manager import acquire_lock, release_lock # Import lock functions
+from src.core.utils.lock_manager import acquire_lock, release_lock # Import lock functions
 
 # Set up logging
 logging.basicConfig(

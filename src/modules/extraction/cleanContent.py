@@ -27,7 +27,7 @@ from typing import Dict, List, Any, Tuple, Optional
 import tiktoken
 
 
-from core.utils.LLM_init import initialize_llm_client, ModelType
+from src.core.utils.LLM_init import initialize_llm_client, ModelType
 from supabase import create_client, Client
 from dotenv import load_dotenv
 

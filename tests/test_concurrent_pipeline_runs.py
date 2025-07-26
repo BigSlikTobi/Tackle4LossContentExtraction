@@ -7,11 +7,12 @@ import threading
 
 # Add parent directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from core.utils.lock_manager import LOCK_FILE_PATH
+from src.core.utils.lock_manager import LOCK_FILE_PATH
 
-CLEANUP_PIPELINE_SCRIPT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'cleanup_pipeline.py'))
-CLUSTER_PIPELINE_SCRIPT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'cluster_pipeline.py'))
+CLEANUP_PIPELINE_SCRIPT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scripts', 'cleanup_pipeline.py'))
+CLUSTER_PIPELINE_SCRIPT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scripts', 'cluster_pipeline.py'))
 
 class TestConcurrentPipelineRuns(unittest.TestCase):
 

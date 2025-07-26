@@ -28,9 +28,9 @@ def setUpModule():
         if p_obj == patch_create_client:
             started_patch.return_value = mock_supabase_instance_globally
 
-    from core.db.update_article import update_article_in_db as uaidb, logger as ual
+    from src.core.db.update_article import update_article_in_db as uaidb, logger as ual
     update_article_in_db = uaidb
-    update_article_logger = ual # The actual logger object from core.db.update_article
+    update_article_logger = ual # The actual logger object from src.core.db.update_article
 
 def tearDownModule():
     """Stop all patches."""
@@ -43,7 +43,7 @@ def tearDownModule():
 
 class TestUpdateArticle(unittest.TestCase):
 
-    @patch('core.db.update_article.supabase_client')
+    @patch('src.core.db.update_article.supabase_client')
     def test_update_article_success(self, mock_supabase_client_for_test):
         mock_response = MagicMock()
         mock_response.error = None
@@ -63,9 +63,9 @@ class TestUpdateArticle(unittest.TestCase):
         mock_supabase_client_for_test.table.return_value.update.return_value.eq.assert_called_once_with("id", article_id)
         mock_execute.assert_called_once_with()
 
-    # Patch the 'error' method of the logger instance named 'logger' within the 'core.db.update_article' module.
-    @patch('core.db.update_article.logger.error')
-    @patch('core.db.update_article.supabase_client')
+    # Patch the 'error' method of the logger instance named 'logger' within the 'src.core.db.update_article' module.
+    @patch('src.core.db.update_article.logger.error')
+    @patch('src.core.db.update_article.supabase_client')
     def test_update_article_failure_db_error(self, mock_supabase_client_for_test, mock_logger_error_method):
         # Order of mock arguments is based on decorator order (from bottom up)
         mock_response = MagicMock()
@@ -86,8 +86,8 @@ class TestUpdateArticle(unittest.TestCase):
         self.assertIn(f"Failed to update database for article {article_id}", args[0])
         self.assertIn("Database connection failed", args[0])
 
-    @patch('core.db.update_article.logger.error')
-    @patch('core.db.update_article.supabase_client')
+    @patch('src.core.db.update_article.logger.error')
+    @patch('src.core.db.update_article.supabase_client')
     def test_update_article_failure_exception(self, mock_supabase_client_for_test, mock_logger_error_method):
         # Order of mock arguments is based on decorator order (from bottom up)
         mock_execute = mock_supabase_client_for_test.table.return_value.update.return_value.eq.return_value.execute

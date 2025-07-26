@@ -8,6 +8,11 @@ import sys
 import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 import numpy as np
+
+# Add the project root to the path for testing imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scripts')))
 from typing import List, Dict, Any
 
 # Add the parent directory to sys.path
@@ -50,7 +55,7 @@ class TestPipelineFunctionalTests(unittest.TestCase):
         
         # Check article_processor.py source
         article_processor_path = os.path.join(
-            os.path.dirname(__file__), '..', 'modules', 'processing', 'article_processor.py'
+            os.path.dirname(__file__), '..', 'src', 'modules', 'processing', 'article_processor.py'
         )
         
         with open(article_processor_path, 'r') as f:
@@ -58,7 +63,7 @@ class TestPipelineFunctionalTests(unittest.TestCase):
             
         # Check extractContent.py source
         extract_content_path = os.path.join(
-            os.path.dirname(__file__), '..', 'modules', 'extraction', 'extractContent.py'
+            os.path.dirname(__file__), '..', 'src', 'modules', 'extraction', 'extractContent.py'
         )
         
         with open(extract_content_path, 'r') as f:
@@ -79,10 +84,10 @@ class TestPipelineFunctionalTests(unittest.TestCase):
     def test_cluster_manager_similarity_matching(self):
         """Test that cluster manager correctly finds similar articles."""
         
-        with patch('core.clustering.db_access.update_old_clusters_status') as mock_update_status:
+        with patch('src.core.clustering.db_access.update_old_clusters_status') as mock_update_status:
             mock_update_status.return_value = 0
             
-            from core.clustering.cluster_manager import ClusterManager
+            from src.core.clustering.cluster_manager import ClusterManager
             
             # Create cluster manager
             manager = ClusterManager(similarity_threshold=0.8, check_old_clusters=False)
@@ -112,9 +117,9 @@ class TestPipelineFunctionalTests(unittest.TestCase):
     def test_cluster_manager_creates_new_cluster_when_no_match(self):
         """Test that cluster manager creates new cluster when no similar cluster exists."""
         
-        with patch('core.clustering.db_access.update_old_clusters_status') as mock_update_status, \
-             patch('core.clustering.db_access.create_cluster_in_db') as mock_create, \
-             patch('core.clustering.db_access.sb') as mock_sb:
+        with patch('src.core.clustering.db_access.update_old_clusters_status') as mock_update_status, \
+             patch('src.core.clustering.db_access.create_cluster_in_db') as mock_create, \
+             patch('src.core.clustering.db_access.sb') as mock_sb:
             
             mock_update_status.return_value = 0
             mock_create.return_value = 'new_cluster_id'
@@ -124,7 +129,7 @@ class TestPipelineFunctionalTests(unittest.TestCase):
             mock_table.insert.return_value.execute.return_value = MagicMock(data=[{'cluster_id': 'new_cluster_id'}])
             mock_sb.table.return_value = mock_table
             
-            from core.clustering.cluster_manager import ClusterManager
+            from src.core.clustering.cluster_manager import ClusterManager
             
             manager = ClusterManager(similarity_threshold=0.8, check_old_clusters=False)
             
@@ -154,10 +159,10 @@ class TestPipelineFunctionalTests(unittest.TestCase):
     def test_cluster_manager_merges_similar_clusters(self):
         """Test that cluster manager can merge very similar clusters."""
         
-        with patch('core.clustering.db_access.update_old_clusters_status') as mock_update_status, \
-             patch('core.clustering.db_access.update_cluster_in_db') as mock_update, \
-             patch('core.clustering.db_access.batch_assign_articles_to_cluster') as mock_batch, \
-             patch('core.clustering.db_access.sb') as mock_sb:
+        with patch('src.core.clustering.db_access.update_old_clusters_status') as mock_update_status, \
+             patch('src.core.clustering.db_access.update_cluster_in_db') as mock_update, \
+             patch('src.core.clustering.db_access.batch_assign_articles_to_cluster') as mock_batch, \
+             patch('src.core.clustering.db_access.sb') as mock_sb:
             
             mock_update_status.return_value = 0
             
@@ -167,7 +172,7 @@ class TestPipelineFunctionalTests(unittest.TestCase):
             mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = mock_articles_resp
             mock_sb.table.return_value.delete.return_value.eq.return_value.execute.return_value = None
             
-            from core.clustering.cluster_manager import ClusterManager
+            from src.core.clustering.cluster_manager import ClusterManager
             
             manager = ClusterManager(similarity_threshold=0.8, check_old_clusters=False)
             
@@ -189,10 +194,10 @@ class TestPipelineFunctionalTests(unittest.TestCase):
     def test_cleanup_pipeline_main_logic(self):
         """Test the main logic flow of cleanup pipeline."""
         
-        with patch('core.db.fetch_unprocessed_articles.get_unprocessed_articles') as mock_fetch, \
-             patch('modules.processing.article_processor.process_article') as mock_process, \
-             patch('core.utils.lock_manager.acquire_lock') as mock_acquire, \
-             patch('core.utils.lock_manager.release_lock') as mock_release, \
+        with patch('cleanup_pipeline.get_unprocessed_articles') as mock_fetch, \
+             patch('cleanup_pipeline.process_article') as mock_process, \
+             patch('cleanup_pipeline.acquire_lock') as mock_acquire, \
+             patch('cleanup_pipeline.release_lock') as mock_release, \
              patch.dict(os.environ, self.test_env):
             
             # Set up mocks
@@ -223,12 +228,12 @@ class TestPipelineFunctionalTests(unittest.TestCase):
     def test_cluster_pipeline_main_logic(self):
         """Test the main logic flow of cluster pipeline."""
         
-        with patch('modules.clustering.cluster_articles.run_clustering_process') as mock_cluster, \
-             patch('core.clustering.db_access.recalculate_cluster_member_counts') as mock_recalc, \
-             patch('core.clustering.db_access.update_old_clusters_status') as mock_update_old, \
-             patch('core.clustering.db_access.repair_zero_centroid_clusters') as mock_repair, \
-             patch('core.utils.lock_manager.acquire_lock') as mock_acquire, \
-             patch('core.utils.lock_manager.release_lock') as mock_release, \
+        with patch('cluster_pipeline.run_clustering_process') as mock_cluster, \
+             patch('cluster_pipeline.recalculate_cluster_member_counts') as mock_recalc, \
+             patch('cluster_pipeline.update_old_clusters_status') as mock_update_old, \
+             patch('cluster_pipeline.repair_zero_centroid_clusters') as mock_repair, \
+             patch('cluster_pipeline.acquire_lock') as mock_acquire, \
+             patch('cluster_pipeline.release_lock') as mock_release, \
              patch.dict(os.environ, self.test_env):
             
             # Set up mocks
@@ -255,10 +260,10 @@ class TestPipelineFunctionalTests(unittest.TestCase):
         """Test that pipelines properly handle lock acquisition and release."""
         
         # Test the lock logic without actually running the pipeline
-        from core.utils.lock_manager import acquire_lock, release_lock
+        from src.core.utils.lock_manager import acquire_lock, release_lock
         
         # Clean up any existing lock
-        from core.utils.lock_manager import LOCK_FILE_PATH
+        from src.core.utils.lock_manager import LOCK_FILE_PATH
         if os.path.exists(LOCK_FILE_PATH):
             os.remove(LOCK_FILE_PATH)
         

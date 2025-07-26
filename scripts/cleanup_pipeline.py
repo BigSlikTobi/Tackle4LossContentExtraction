@@ -17,15 +17,14 @@ from typing import Dict, Any, List, Set, Optional
 
 # Add src directory to Python path
 from pathlib import Path
+project_root = Path(__file__).parent.parent
+src_path = project_root / "src"
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(src_path))
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(PROJECT_ROOT / "src"))
-
-
-# Import the necessary modules
-from core.db.fetch_unprocessed_articles import get_unprocessed_articles
-from core.utils.lock_manager import acquire_lock, release_lock # Import lock functions
-from modules.processing.article_processor import process_article 
+from src.core.db.fetch_unprocessed_articles import get_unprocessed_articles
+from src.core.utils.lock_manager import acquire_lock, release_lock # Import lock functions
+from src.modules.processing.article_processor import process_article 
 
 # Note: find_similar_articles.py now has fetch_recent_embeddings.
 # We might need a different function here if we want *just* the newly processed ones for some reason

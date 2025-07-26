@@ -20,12 +20,13 @@ from typing import Dict, List, Tuple
 # Add root directory to Python path to allow importing core modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from core.clustering.db_access import (
+from src.core.clustering.db_access import (
+    assign_article_to_cluster,
     fetch_unclustered_articles,
     fetch_existing_clusters,
     batch_assign_articles_to_cluster
 )
-from core.clustering.cluster_manager import ClusterManager
+from src.core.clustering.cluster_manager import ClusterManager
 
 # Set up logging
 logging.basicConfig(

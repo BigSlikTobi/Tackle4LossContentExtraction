@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from core.clustering.vector_utils import parse_embedding
+from src.core.clustering.vector_utils import parse_embedding
 
 
 @pytest.mark.parametrize(

@@ -7,7 +7,7 @@ It connects to a Supabase database and handles the update operations.
 import logging # Import logging module
 
 # Import the Supabase client from the fetch_unprocessed_articles module
-from core.db.fetch_unprocessed_articles import supabase_client
+from src.core.db.fetch_unprocessed_articles import supabase_client
 from typing import Dict, Any
 
 logger = logging.getLogger(__name__) # Get logger instance

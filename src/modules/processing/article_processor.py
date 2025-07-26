@@ -13,10 +13,10 @@ from typing import Dict, Any, Optional
 from urllib.parse import unquote
 
 # Assuming the top-level directory is in sys.path (handled by Pipeline.py)
-from modules.extraction.extractContent import extract_main_content
-from modules.extraction.cleanContent import extract_content_with_llm, analyze_content_type
-from core.utils.create_embeddings import create_and_store_embedding
-from core.db.update_article import update_article_in_db
+from src.modules.extraction.extractContent import extract_main_content
+from src.modules.extraction.cleanContent import extract_content_with_llm, analyze_content_type
+from src.core.utils.create_embeddings import create_and_store_embedding
+from src.core.db.update_article import update_article_in_db
 
 async def process_article(article: Dict[str, Any]) -> Optional[int]:
     """

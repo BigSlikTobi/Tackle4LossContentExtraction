@@ -15,8 +15,10 @@ from typing import Dict, Any, List
 
 # Add the parent directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add src directory to sys.path for new module structure
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from core.utils.lock_manager import LOCK_FILE_PATH
+from src.core.utils.lock_manager import LOCK_FILE_PATH
 
 class TestPipelineHealthChecks(unittest.TestCase):
     """
@@ -44,18 +46,19 @@ class TestPipelineHealthChecks(unittest.TestCase):
         process_env['OPENAI_API_KEY'] = 'sk-test-dummy-key'
         process_env['DEEPSEEK_API_KEY'] = 'sk-test-dummy-deepseek-key'
         
-        # Ensure PYTHONPATH includes project root
+        # Ensure PYTHONPATH includes project root and src directory
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        src_path = os.path.join(project_root, 'src')
         if 'PYTHONPATH' in process_env:
-            process_env['PYTHONPATH'] = f"{project_root}:{process_env['PYTHONPATH']}"
+            process_env['PYTHONPATH'] = f"{project_root}:{src_path}:{process_env['PYTHONPATH']}"
         else:
-            process_env['PYTHONPATH'] = project_root
+            process_env['PYTHONPATH'] = f"{project_root}:{src_path}"
             
         return process_env
 
     def _run_pipeline_subprocess(self, script_name: str, timeout: int = 30) -> subprocess.CompletedProcess:
         """Run a pipeline script as subprocess with proper environment."""
-        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', script_name))
+        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scripts', script_name))
         return subprocess.run(
             [sys.executable, script_path],
             capture_output=True,
@@ -71,7 +74,7 @@ class TestPipelineHealthChecks(unittest.TestCase):
                 # Try to import the cleanup pipeline module
                 spec = importlib.util.spec_from_file_location(
                     "cleanup_pipeline", 
-                    os.path.join(os.path.dirname(__file__), '..', 'cleanup_pipeline.py')
+                    os.path.join(os.path.dirname(__file__), '..', 'scripts', 'cleanup_pipeline.py')
                 )
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
@@ -91,7 +94,7 @@ class TestPipelineHealthChecks(unittest.TestCase):
             with patch.dict(os.environ, self._get_test_env()):
                 spec = importlib.util.spec_from_file_location(
                     "cluster_pipeline", 
-                    os.path.join(os.path.dirname(__file__), '..', 'cluster_pipeline.py')
+                    os.path.join(os.path.dirname(__file__), '..', 'scripts', 'cluster_pipeline.py')
                 )
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
@@ -199,7 +202,7 @@ class TestPipelineHealthChecks(unittest.TestCase):
         env['SUPABASE_URL'] = 'http://invalid-url-that-will-fail.com'
         
         result = subprocess.run(
-            [sys.executable, os.path.join(os.path.dirname(__file__), '..', 'cleanup_pipeline.py')],
+            [sys.executable, os.path.join(os.path.dirname(__file__), '..', 'scripts', 'cleanup_pipeline.py')],
             capture_output=True,
             text=True,
             env=env,
@@ -225,7 +228,7 @@ class TestPipelineHealthChecks(unittest.TestCase):
         env['SUPABASE_URL'] = 'http://invalid-url-that-will-fail.com'
         
         result = subprocess.run(
-            [sys.executable, os.path.join(os.path.dirname(__file__), '..', 'cluster_pipeline.py')],
+            [sys.executable, os.path.join(os.path.dirname(__file__), '..', 'scripts', 'cluster_pipeline.py')],
             capture_output=True,
             text=True,
             env=env,
@@ -243,12 +246,12 @@ class TestPipelineHealthChecks(unittest.TestCase):
     def test_pipeline_modules_can_be_imported(self):
         """Test that all pipeline-related modules can be imported successfully."""
         import_tests = [
-            'core.db.fetch_unprocessed_articles',
-            'core.utils.lock_manager',
-            'modules.processing.article_processor',
-            'core.clustering.cluster_manager',
-            'core.clustering.db_access',
-            'modules.clustering.cluster_articles'
+            'src.core.db.fetch_unprocessed_articles',
+            'src.core.utils.lock_manager',
+            'src.modules.processing.article_processor',
+            'src.core.clustering.cluster_manager',
+            'src.core.clustering.db_access',
+            'src.modules.clustering.cluster_articles'
         ]
         
         with patch.dict(os.environ, self._get_test_env()):

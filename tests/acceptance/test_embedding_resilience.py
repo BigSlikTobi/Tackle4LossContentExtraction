@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../s
 
 # Modules to be tested or that contain components to be mocked
 # Note: The client name in create_embeddings is now openai_client_instance
-from core.utils.create_embeddings import create_and_store_embedding, openai_client_instance
+from src.core.utils.create_embeddings import create_and_store_embedding, openai_client_instance
 from openai import APIError, APIConnectionError # For simulating OpenAI errors
 
 # Configure a simple logger for the test output (captures print statements from the module)
@@ -37,9 +37,9 @@ class TestEmbeddingResilience(unittest.TestCase):
         self.mock_successful_embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
 
 
-    @patch('core.utils.create_embeddings.logger', mock_create_embeddings_logger) # Patch the logger in the CUT
-    @patch('core.utils.create_embeddings.supabase_client', new_callable=MagicMock)
-    @patch('core.utils.create_embeddings.openai_client_instance') # Patch the actual client instance used
+    @patch('src.core.utils.create_embeddings.logger', mock_create_embeddings_logger) # Patch the logger in the CUT
+    @patch('src.core.utils.create_embeddings.supabase_client', new_callable=MagicMock)
+    @patch('src.core.utils.create_embeddings.openai_client_instance') # Patch the actual client instance used
     def test_openai_failures_are_handled(self, mock_actual_openai_client, mock_supabase_client_for_embeddings):
         # mock_actual_openai_client is the one used by create_embedding if not None
         # The logger is patched directly with mock_create_embeddings_logger and not passed as an argument.
