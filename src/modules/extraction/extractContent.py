@@ -1,5 +1,14 @@
 """
 Extract content from unprocessed articles using a web crawler and LLM extraction strategy.
+This module fetches unprocessed articles from the database, extracts their main content using a web crawler,
+and saves the extracted content to a JSON file.
+It uses the AsyncWebCrawler from the crawl4ai library and LLMExtractionStrategy for content extraction.
+The extracted content is saved in a structured format for further processing or analysis.
+
+Process:
+1. Fetch unprocessed articles from the database.
+2. For each article, extract the main content using the web crawler.
+3. Save the extracted content to a JSON file.
 """
 
 import os
@@ -11,6 +20,7 @@ import random
 from urllib.parse import unquote
 from crawl4ai import AsyncWebCrawler, CacheMode
 from crawl4ai.extraction_strategy import LLMExtractionStrategy
+
 from core.db.fetch_unprocessed_articles import get_unprocessed_articles
 from core.utils.LLM_init import initialize_llm_client, ModelType
 
@@ -22,12 +32,13 @@ api_token = os.environ.get("OPENAI_API_KEY")  # Get API key from environment
 async def extract_main_content(full_url: str) -> str:
     """
     Extract the main content from a web page using a web crawler and LLM extraction strategy.
-
+    This function uses the AsyncWebCrawler to fetch the page and the LLMExtractionStrategy to extract the content.
     Args:
         full_url (str): The full URL of the article to extract content from.
-
     Returns:
         str: The extracted content as a string, or an error message if extraction fails.
+    Raises:
+        Exception: If there is an error during the extraction process.
     """
     try:
         async with AsyncWebCrawler(verbose=False) as crawler:

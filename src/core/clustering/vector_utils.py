@@ -15,13 +15,13 @@ logger = logging.getLogger(__name__)
 
 def parse_embedding(embedding_str: str) -> np.ndarray:
     """Parse embedding string from database into numpy array.
-    
+    This function handles both array-like strings (e.g., "[1.0, 2.0, 3.0]") and
+    space-separated strings (e.g., "1.0 2.0 3.0").
+    It converts the string representation of an embedding vector into a numpy array.
     Args:
-        embedding_str: String representation of embedding vector
-        
+        embedding_str: String representation of embedding vector       
     Returns:
-        numpy.ndarray: The embedding as a numpy array
-        
+        numpy.ndarray: The embedding as a numpy array      
     Raises:
         ValueError: If the embedding string cannot be parsed
     """
@@ -46,6 +46,18 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return ``0.0`` in those cases. If the vectors differ in length by a factor of
     two, the longer vector is downsampled to match the shorter one. Any other
     dimensional mismatch results in ``ValueError``.
+    Args:
+        a (np.ndarray): First vector.
+        b (np.ndarray): Second vector.
+    Returns:
+        float: Cosine similarity between the two vectors.
+    Raises:
+        ValueError: If the vectors have incompatible dimensions.
+    Notes:
+        - If either vector is empty or has zero dimensions, the function returns `0.0`.
+        - If the vectors differ in length by a factor of two, the longer vector is downsampled to match the shorter one.
+        - If the vectors have incompatible dimensions (not differing by a factor of two), a `ValueError` is raised.
+        - The function uses numpy for efficient computation and handles potential issues with zero norms.
     """
 
     a = np.asarray(a)
@@ -83,7 +95,17 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (norm_a * norm_b))
 
 def normalize_vector_dimensions(vec_a: np.ndarray, vec_b: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Normalize two vectors to have the same dimensions by downsampling the larger one."""
+    """
+    Normalize two vectors to have the same dimensions by downsampling the larger one.
+    This function ensures that both vectors are compatible for operations like cosine similarity.
+    Args:
+        vec_a (np.ndarray): First vector.
+        vec_b (np.ndarray): Second vector.
+    Returns:
+        tuple[np.ndarray, np.ndarray]: A tuple containing the normalized vectors.
+    Raises:
+        ValueError: If the vectors have incompatible dimensions that cannot be normalized.
+    """
     if vec_a.shape[0] == vec_b.shape[0]:
         return vec_a, vec_b
     

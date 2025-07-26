@@ -1,7 +1,9 @@
 """
 Process module for clustering unclustered articles.
+This module implements the logic for clustering articles based on their content.
+It uses a similarity threshold to determine if articles are related enough to be clustered together.
 
-This process:
+Process:
 1. Fetches unclustered articles from the database
 2. Fetches existing clusters
 3. Tries to match articles to existing clusters
@@ -35,13 +37,15 @@ logger = logging.getLogger(__name__)
 def run_clustering_process(similarity_threshold: float = 0.82, merge_threshold: float = 0.9) -> None:
     """
     Main entry point for the article clustering process.
-
     This function fetches unclustered articles and existing clusters, attempts to match articles to clusters,
     creates new clusters as needed, and updates the database with new assignments.
-
     Args:
         similarity_threshold (float): Minimum similarity score for articles to be considered related.
         merge_threshold (float): Threshold for merging similar clusters (should be higher than similarity_threshold).
+    Returns:
+        None
+    Raises:
+        ValueError: If merge_threshold is not greater than similarity_threshold.
     """
     process_start_time = time.time()
     logger.info(f"Starting article clustering process (threshold={similarity_threshold}, merge_threshold={merge_threshold})")

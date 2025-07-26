@@ -1,6 +1,8 @@
 # core/db/fetch_unprocessed_articles.py
 """
 Database logic for fetching unprocessed SourceArticles.
+This module connects to a Supabase database to retrieve articles that have not been processed yet.
+It handles the connection setup, error handling, and data retrieval.
 """
 from supabase import create_client, Client
 import os
@@ -24,7 +26,7 @@ if SUPABASE_URL and SUPABASE_KEY and not IS_CI:
         print(f"WARNING: Failed to initialize Supabase client: {e}")
         supabase_client = None
 elif IS_CI and SUPABASE_URL and SUPABASE_KEY and not SUPABASE_KEY.startswith('test-'):
-    # In CI with what appears to be real credentials
+    # In CI with real credentials
     try:
         supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
     except Exception as e:
@@ -42,6 +44,13 @@ else:
 def get_unprocessed_articles() -> List[Dict]:
     """
     Fetches SourceArticles records where isProcessed = false.
+    This function retrieves articles that have not been processed yet.
+    Args:
+        None
+    Returns:
+        List[Dict]: A list of dictionaries representing unprocessed articles.
+    Raises:
+        Exception: If there is an error fetching data from Supabase.
     """
     if not supabase_client:
         print("Supabase client not initialized. Returning empty list for unprocessed articles.")

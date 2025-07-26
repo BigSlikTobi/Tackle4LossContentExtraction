@@ -11,7 +11,7 @@ import asyncio
 import sys
 import os
 import time
-import traceback  # Import traceback for detailed error logging
+import traceback 
 from datetime import datetime, timedelta, UTC
 from typing import Dict, Any, List, Set, Optional
 
@@ -25,13 +25,8 @@ sys.path.append(str(PROJECT_ROOT / "src"))
 # Import the necessary modules
 from core.db.fetch_unprocessed_articles import get_unprocessed_articles
 from core.utils.lock_manager import acquire_lock, release_lock # Import lock functions
-# Removed unused imports: extract_main_content, extract_content_with_llm, analyze_content_type, initialize_llm_client, create_and_store_embedding, update_article_in_db
-from modules.processing.article_processor import process_article # Import the moved function
-# Removed similarity and clustering imports
+from modules.processing.article_processor import process_article 
 
-# Removed LLM client initialization as it's not directly used here anymore
-
-# --- Helper function to fetch embeddings (modified for find_similar_articles logic) ---
 # Note: find_similar_articles.py now has fetch_recent_embeddings.
 # We might need a different function here if we want *just* the newly processed ones for some reason
 # but fetch_recent_embeddings (last 48h) seems appropriate for the similarity check.
@@ -99,7 +94,4 @@ async def main():
         print("--- Lock released. Pipeline shutdown complete. ---")
 
 if __name__ == "__main__":
-    # Consider adding nest_asyncio if running in environments like Jupyter/Spyder
-    # import nest_asyncio
-    # nest_asyncio.apply()
     asyncio.run(main())

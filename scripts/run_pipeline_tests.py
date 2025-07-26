@@ -2,6 +2,13 @@
 """
 Pipeline test runner - runs comprehensive tests for both pipelines.
 Use this script to verify pipeline functionality before deploying changes.
+It runs:
+- Quick health checks
+- Full test suite
+- Cleanup pipeline tests
+- Cluster pipeline tests
+- Syntax checks
+- Linting checks
 """
 import os
 import sys
@@ -18,11 +25,11 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 def run_test_suite(test_pattern: str = None, verbose: bool = True) -> Tuple[bool, str]:
     """
     Run a specific test suite or all pipeline tests.
-    
+    This runs pytest on the specified test files or all pipeline-related tests.
+    If test_pattern is provided, it filters tests by that pattern.
     Args:
         test_pattern: Pattern to match test files (e.g., 'pipeline', 'health')
-        verbose: Whether to show verbose output
-        
+        verbose: Whether to show verbose output   
     Returns:
         Tuple of (success, output)
     """
@@ -100,6 +107,10 @@ def run_quick_health_check() -> bool:
     """
     Run a quick health check to verify pipelines can start.
     Returns True if both pipelines can at least start without crashing.
+    Args:
+        None
+    Returns:
+        bool: True if quick health check passed, False otherwise.   
     """
     print("🔍 Running quick pipeline health check...")
     

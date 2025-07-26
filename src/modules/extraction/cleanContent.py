@@ -2,6 +2,16 @@
 """
 This script reads the extracted content from JSON and uses multiple LLM models to
 extract and structure the content into a clean format.
+It handles both DeepSeek and OpenAI models, allowing for flexible usage in different environments.
+
+Process:
+1. Loads the extracted content from a JSON file.
+2. Cleans the text by removing unnecessary elements.
+3. Uses the LLM to extract structured information such as title, publication date, author, and main content.
+4. Analyzes the content type.
+5. Cleans the publication date to a PostgreSQL-compatible format.
+6. Processes all articles and saves the cleaned content to a new JSON file.
+7. Updates the article content type in the database if necessary.
 """
 # TODO: Add -4o-mini for extraction tasks
 # TODO: enable retry (3 times) for empty content extraction
@@ -15,6 +25,8 @@ from dateutil import parser
 import logging
 from typing import Dict, List, Any, Tuple, Optional
 import tiktoken
+
+
 from core.utils.LLM_init import initialize_llm_client, ModelType
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -25,6 +37,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 supabase_client: Optional[Client] = None
+
+# Check if running in CI environment and set a flag
 IS_CI = os.getenv("CI") == 'true' or os.getenv("GITHUB_ACTIONS") == 'true'
 
 # Initialize Supabase client only if credentials are available and valid
@@ -57,12 +71,14 @@ gpt4_client, gpt4_model = initialize_llm_client(model_type="gpt-4.1-nano-2025-04
 def load_extracted_content(file_path: str) -> Dict[str, Any]:
     """
     Load the extracted content from a JSON file.
-
+    This function reads the JSON file containing the extracted content and returns it as a dictionary.
     Args:
         file_path (str): Path to the JSON file containing extracted content.
-
     Returns:
         Dict[str, Any]: Dictionary containing the extracted content.
+    Raises:
+        FileNotFoundError: If the specified file does not exist.
+        json.JSONDecodeError: If the file content is not valid JSON.
     """
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
@@ -74,12 +90,14 @@ def load_extracted_content(file_path: str) -> Dict[str, Any]:
 def clean_text(text: str) -> str:
     """
     Basic cleaning of text before sending to LLM.
-
+    This function removes image descriptions, extra backslashes, and links while keeping the text.
+    It also removes extra whitespace to ensure the text is clean and ready for processing.
     Args:
         text (str): The text to clean.
-
     Returns:
         str: Cleaned text.
+    Raises:
+        None
     """
     # Remove image descriptions
     text = re.sub(r'!\[[^\]]*\]\([^)]*\)', '', text)
@@ -94,12 +112,14 @@ def clean_text(text: str) -> str:
 def clean_publication_date(date_string: str) -> Optional[str]:
     """
     Convert publication date to PostgreSQL timestamptz format.
-
+    This function takes a date string and attempts to parse it into a datetime object,
+    then formats it as a string suitable for PostgreSQL.
     Args:
         date_string (str): The original publication date string.
-
     Returns:
         Optional[str]: Formatted date string in timestamptz format or None if parsing fails.
+    Raises:
+        ValueError: If the date string is invalid.
     """
     if not date_string:
         return None
@@ -114,7 +134,19 @@ def clean_publication_date(date_string: str) -> Optional[str]:
         return None
 
 def num_tokens(text: str, model: str) -> int:
-    """Return the number of tokens in ``text`` for ``model``."""
+    """
+    Return the number of tokens in ``text`` for ``model``.
+    This function uses the tiktoken library to count the number of tokens in a given text
+    based on the specified model's encoding.
+    Args:
+        text (str): The text to count tokens for.
+        model (str): The model to use for tokenization.
+    Returns:    
+        int: The number of tokens in the text.
+    Raises: 
+        KeyError: If the model is not recognized by tiktoken.
+        Exception: For any other unexpected errors.
+    """
     try:
         enc = tiktoken.encoding_for_model(model)
     except KeyError:
@@ -122,7 +154,20 @@ def num_tokens(text: str, model: str) -> int:
     return len(enc.encode(text))
 
 def chunk_text(text: str, max_tokens: int, model: str) -> List[str]:
-    """Split ``text`` into chunks each with at most ``max_tokens`` tokens."""
+    """
+    Split ``text`` into chunks each with at most ``max_tokens`` tokens.
+    This function uses the tiktoken library to split the text into manageable chunks 
+    that do not exceed the specified token limit for the given model.
+    Args:
+        text (str): The text to chunk.
+        max_tokens (int): Maximum number of tokens per chunk.
+        model (str): The model to use for tokenization.
+    Returns:
+        List[str]: A list of text chunks.
+    Raises:
+        ValueError: If the text is too long to be tokenized.
+        KeyError: If the model is not recognized by tiktoken.
+    """
     try:
         enc = tiktoken.encoding_for_model(model)
     except KeyError:
@@ -133,10 +178,18 @@ def chunk_text(text: str, max_tokens: int, model: str) -> List[str]:
 
 def extract_content_with_llm(content: str) -> Dict[str, str]:
     """Extract article content using the configured LLM.
-
     This function dynamically chunks content that exceeds the model token limit
-    and merges the results so longer articles can be processed without
-    truncation.
+    and merges the results so longer articles can be processed without truncation.
+    Args:
+        content (str): The article content to process.
+    Returns:    
+        Dict[str, str]: A dictionary containing the extracted fields:
+            - title: The article title
+            - publication_date: The publication date
+            - author: The article author
+            - main_content: The main article content
+    Raises:
+        ValueError: If the content is invalid or cannot be processed.   
     """
     cleaned_content = clean_text(content)
 
@@ -215,15 +268,15 @@ Text:
 
 def analyze_content_type(content: Dict[str, str]) -> Dict[str, Any]:
     """
-    Analyze the content and determine its category using Deepseek LLM.
-
-    Uses Deepseek for its strong analytical capabilities.
-
+    Analyze the content and determine its category.
+    This function uses the defined model and rules to categorize the content into predefined types.
     Args:
         content (Dict[str, str]): Dictionary containing the article content with title, main_content, and url.
-
     Returns:
         Dict[str, Any]: Dictionary with content type and confidence score.
+        The content type can be one of ["news_article", "topic_collection", "news_collection", "empty_content", "news-round-up"].
+    Raises:
+        ValueError: If the content type is invalid or cannot be determined.
     """
     # Check for news-round-up based on URL
     url = content.get("url", "")
@@ -294,12 +347,15 @@ Content to analyze:
 def process_all_articles(extracted_data: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
     """
     Process all articles in the extracted data using LLM.
-
+    This function iterates through the extracted data, cleans the content, extracts structured information,
+    analyzes the content type, and returns a dictionary of processed articles.
+    It handles the entire process of extracting and structuring content for each article.
     Args:
         extracted_data (Dict[str, Any]): Dictionary of all extracted content.
-
     Returns:
         Dict[str, Dict[str, str]]: Dictionary of processed articles with article ID as key.
+    Raises:
+        Exception: If there is an error processing any article.
     """
     processed_articles = {}
     for article_id, content_data in extracted_data.items():
@@ -343,10 +399,15 @@ def process_all_articles(extracted_data: Dict[str, Any]) -> Dict[str, Dict[str, 
 def save_cleaned_content(cleaned_data: Dict[str, Dict[str, str]], output_file: str) -> None:
     """
     Save the cleaned content to a JSON file.
-
+    This function writes the cleaned articles to a specified output file in JSON format.
+    It ensures that the cleaned content is saved in a structured format for further processing or storage.
     Args:
         cleaned_data (Dict[str, Dict[str, str]]): Dictionary of cleaned articles.
         output_file (str): Path to the output file.
+    Returns:
+        None
+    Raises:
+        IOError: If there is an error writing to the output file.   
     """
     try:
         with open(output_file, 'w', encoding='utf-8') as file:
@@ -358,10 +419,14 @@ def save_cleaned_content(cleaned_data: Dict[str, Dict[str, str]], output_file: s
 def update_article_in_db(article_id: int, update_data: Dict[str, Any]) -> None:
     """
     Update an article's data in the Supabase database.
-
+    This function updates the specified columns of an article in the SourceArticles table.
     Args:
         article_id (int): The ID of the article to update.
         update_data (Dict[str, Any]): The data to update.
+    Returns:
+        None
+    Raises:
+        Exception: If there is an error updating the article in the database.
     """
     if not supabase_client:
         logging.warning(f"Supabase client not initialized. Skipping update for article {article_id}.")
@@ -378,8 +443,15 @@ def update_article_in_db(article_id: int, update_data: Dict[str, Any]) -> None:
 def update_existing_articles_content_type() -> None:
     """
     Check and update content types for all existing articles in the database.
-
     Particularly useful for applying new content type rules to existing articles.
+    This function fetches all processed articles from the database, analyzes their content type,
+    and updates the contentType field if necessary.
+    Args:
+        None
+    Returns:
+        None
+    Raises:
+        Exception: If there is an error fetching or updating articles in the database.
     """
     try:
         # Fetch all processed articles from the database

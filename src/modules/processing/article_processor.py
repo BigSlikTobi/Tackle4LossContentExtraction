@@ -1,5 +1,11 @@
 """
 Module for processing a single article through extraction, cleaning, embedding, and DB update.
+THis module handles the end-to-end processing of an article, including:
+Process:
+1. Extracting content from the article URL using a web crawler.
+2. Cleaning and structuring the extracted content using LLM.
+3. Creating an embedding for the cleaned content.
+4. Updating the article in the database with the cleaned content and embedding.
 """
 import asyncio
 import traceback
@@ -15,12 +21,12 @@ from core.db.update_article import update_article_in_db
 async def process_article(article: Dict[str, Any]) -> Optional[int]:
     """
     Process a single article through extraction, cleaning, embedding, and DB update.
-
     Args:
         article (Dict[str, Any]): Dictionary containing article information.
-
     Returns:
         Optional[int]: The article ID if processed successfully, None otherwise.
+    Raises:
+        Exception: If there is an error during the processing steps.
     """
     article_id = article["id"]
     # Normalize URL: use article["url"] if it starts with http; otherwise, prepend "https://www."
@@ -94,8 +100,8 @@ async def process_article(article: Dict[str, Any]) -> Optional[int]:
     except Exception as e:
         print(f"[ERROR] Failed to clean content for article {article_id}: {e}")
         print(traceback.format_exc())
-        # Prepare minimal data to mark as processed_with_error maybe? Or just skip update?
-        # Let's skip DB update and embedding if cleaning fails
+        # If cleaning fails, we can still try to update DB with error state or skip
+        # For now, we want to skip embedding and DB update if cleaning fails
         processed_data = None
 
 
@@ -109,13 +115,8 @@ async def process_article(article: Dict[str, Any]) -> Optional[int]:
                 "contentType": processed_data["content_type"],
                 "Content": processed_data["main_content"],
                 "Author": processed_data["author"],
-                # Add Title if you have a column for it
-                # "Title": processed_data["title"],
                 "isProcessed": True
             }
-            # Add publication date if you have a column and it was parsed
-            # if processed_data.get("cleaned_date_timestamptz"):
-            #    update_data["PublicationDate"] = processed_data["cleaned_date_timestamptz"]
 
             db_update_successful = update_article_in_db(article_id, update_data)
             if db_update_successful:
@@ -145,13 +146,6 @@ async def process_article(article: Dict[str, Any]) -> Optional[int]:
              print(f"Skipping embedding for article {article_id} due to database update failure.")
 
     else:
-        # If cleaning failed or produced no content, mark as processed but maybe with an error flag?
-        # Or just leave isProcessed=False? For now, let's just log and return None.
+        # If cleaning failed leave isProcessed=False. For now, we just log and return None.
         print(f"Skipping database update and embedding for article {article_id} due to issues in previous steps.")
-        # Optionally, update DB to mark as processed with error state if needed:
-        # try:
-        #     supabase_client.table("SourceArticles").update({"isProcessed": True, "contentType": "processing_error"}).eq("id", article_id).execute()
-        # except Exception as db_err:
-        #     print(f"[ERROR] Failed to mark article {article_id} with processing error: {db_err}")
-
-    return None # Return None if processing wasn't fully successful
+    return None 
