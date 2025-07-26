@@ -2,6 +2,13 @@
 """
 Pipeline test runner - runs comprehensive tests for both pipelines.
 Use this script to verify pipeline functionality before deploying changes.
+It runs:
+- Quick health checks
+- Full test suite
+- Cleanup pipeline tests
+- Cluster pipeline tests
+- Syntax checks
+- Linting checks
 """
 import os
 import sys
@@ -18,15 +25,15 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 def run_test_suite(test_pattern: str = None, verbose: bool = True) -> Tuple[bool, str]:
     """
     Run a specific test suite or all pipeline tests.
-    
+    This runs pytest on the specified test files or all pipeline-related tests.
+    If test_pattern is provided, it filters tests by that pattern.
     Args:
         test_pattern: Pattern to match test files (e.g., 'pipeline', 'health')
-        verbose: Whether to show verbose output
-        
+        verbose: Whether to show verbose output   
     Returns:
         Tuple of (success, output)
     """
-    test_dir = os.path.join(os.path.dirname(__file__), 'tests')
+    test_dir = os.path.join(PROJECT_ROOT, 'tests')
     
     if test_pattern:
         test_files = [f for f in os.listdir(test_dir) 
@@ -63,7 +70,7 @@ def run_test_suite(test_pattern: str = None, verbose: bool = True) -> Tuple[bool
                 [sys.executable, '-m', 'pytest', test_path, '-v' if verbose else '-q'],
                 capture_output=True,
                 text=True,
-                cwd=os.path.dirname(test_dir),  # Run from project root
+                cwd=str(PROJECT_ROOT),  # Run from project root
                 timeout=300  # 5 minute timeout per test file
             )
             
@@ -100,6 +107,10 @@ def run_quick_health_check() -> bool:
     """
     Run a quick health check to verify pipelines can start.
     Returns True if both pipelines can at least start without crashing.
+    Args:
+        None
+    Returns:
+        bool: True if quick health check passed, False otherwise.   
     """
     print("🔍 Running quick pipeline health check...")
     
@@ -111,18 +122,17 @@ def run_quick_health_check() -> bool:
         'DEEPSEEK_API_KEY': 'test_deepseek_key'
     })
     
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    test_env['PYTHONPATH'] = project_root
+    test_env['PYTHONPATH'] = str(PROJECT_ROOT)
     
     pipelines = [
-        ('cleanup_pipeline.py', 'Cleanup Pipeline'),
-        ('cluster_pipeline.py', 'Cluster Pipeline')
+        ('scripts/cleanup_pipeline.py', 'Cleanup Pipeline'),
+        ('scripts/cluster_pipeline.py', 'Cluster Pipeline')
     ]
     
     all_healthy = True
     
     for script, name in pipelines:
-        script_path = os.path.join(project_root, script)
+        script_path = os.path.join(PROJECT_ROOT, script)
         print(f"  Testing {name}...")
         
         try:
@@ -130,7 +140,7 @@ def run_quick_health_check() -> bool:
             result = subprocess.run(
                 [sys.executable, '-c', f"""
 import sys
-sys.path.append('{project_root}')
+sys.path.append('{PROJECT_ROOT}')
 try:
     import importlib.util
     spec = importlib.util.spec_from_file_location('pipeline', '{script_path}')

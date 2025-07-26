@@ -2,10 +2,10 @@ import unittest
 import os
 import sys
 
-# Add the parent directory to sys.path to allow imports from core.utils
+# Add the parent directory to sys.path to allow imports from src.core.utils
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from core.utils.lock_manager import acquire_lock, release_lock, LOCK_FILE_PATH
+from src.core.utils.lock_manager import acquire_lock, release_lock, LOCK_FILE_PATH
 
 class TestLockManager(unittest.TestCase):
 

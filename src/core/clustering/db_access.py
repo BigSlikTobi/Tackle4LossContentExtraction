@@ -1,5 +1,7 @@
 """
 Database access layer for article clustering operations.
+This module provides functions to interact with the database for clustering operations,
+including fetching unclustered articles, updating cluster information, and managing article embeddings.
 """
 
 import uuid
@@ -10,9 +12,9 @@ import os
 import sys
 import logging
 from typing import Dict, List, Tuple, Optional
-from postgrest.exceptions import APIError # Import Postgrest APIError
+from postgrest.exceptions import APIError 
 
-from core.clustering.vector_utils import parse_embedding, normalize_vector_dimensions
+from src.core.clustering.vector_utils import parse_embedding, normalize_vector_dimensions
 
 # Set up logging
 logging.basicConfig(
@@ -26,9 +28,13 @@ IS_CI = os.getenv("CI") == 'true' or os.getenv("GITHUB_ACTIONS") == 'true'
 # Initialize Supabase client with proper error handling
 def init_supabase_client() -> Optional[object]:
     """Initialize the Supabase client with proper error handling.
-    
+    This function loads environment variables and creates a Supabase client.
+    Args:
+        None
     Returns:
         Supabase client object or None if initialization fails
+    Raises:
+        Exception: If there is an error initializing the Supabase client.  
     """
     load_dotenv()
     SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -62,12 +68,16 @@ class RPCCallFailedError(Exception):
     """Custom exception for RPC call failures."""
     pass
 
-
 def fetch_unclustered_articles() -> List[Tuple[int, np.ndarray]]:
     """Fetch articles without a cluster_id from the database.
-    
+    This function retrieves articles that have not been assigned to any cluster.
+    Args:
+        None
     Returns:
         List of tuples with article ID and embedding vector
+    Raises: 
+        APIError: If there is an error fetching data from the Supabase database.
+        Exception: If there is an unexpected error during the fetch operation.
     """
     if sb is None:
         logger.warning("Supabase client is not initialized. Cannot perform fetch_unclustered_articles operation.")
@@ -106,9 +116,14 @@ def fetch_unclustered_articles() -> List[Tuple[int, np.ndarray]]:
 
 def fetch_existing_clusters() -> List[Tuple[str, np.ndarray, int]]:
     """Fetch existing clusters with their centroids and counts.
-    
+    This function retrieves clusters from the database, including their IDs, centroid vectors, and member counts.   
+    Args:
+        None
     Returns:
         List of tuples with cluster ID, centroid vector, and member count
+    Raises: 
+        APIError: If there is an error fetching data from the Supabase database.
+        Exception: If there is an unexpected error during the fetch operation.
     """
     if sb is None:
         logger.warning("Supabase client is not initialized. Cannot perform fetch_existing_clusters operation.")
@@ -151,12 +166,17 @@ def fetch_existing_clusters() -> List[Tuple[str, np.ndarray, int]]:
 
 def update_cluster_in_db(cluster_id: str, new_centroid: np.ndarray, new_count: int, isContent: bool = False) -> None:
     """Update an existing cluster in the database.
-    
+    This function updates the centroid and member count of a cluster in the database.
     Args:
         cluster_id: The ID of the cluster to update
         new_centroid: The updated centroid vector
         new_count: The updated member count
         isContent: Whether the cluster has content associated with it
+    Returns:    
+        None
+    Raises: 
+        APIError: If there is an error updating the cluster in the Supabase database.
+        Exception: If there is an unexpected error during the update operation.
     """
     if sb is None:
         logger.error(f"Supabase client is not initialized. Cannot perform update_cluster_in_db operation for cluster_id {cluster_id}.")
@@ -194,13 +214,16 @@ def update_cluster_in_db(cluster_id: str, new_centroid: np.ndarray, new_count: i
 
 def create_cluster_in_db(centroid: np.ndarray, member_count: int) -> Optional[str]:
     """Create a new cluster in the database.
-    
+    This function creates a new cluster with the given centroid and member count.
+    It generates a new UUID for the cluster and inserts it into the database.
     Args:
         centroid: The centroid vector for the new cluster
-        member_count: The initial member count
-        
+        member_count: The initial member count   
     Returns:
         str: The ID of the newly created cluster, or None on failure.
+    Raises: 
+        APIError: If there is an error creating the cluster in the Supabase database.
+        Exception: If there is an unexpected error during the creation operation.
     """
     if sb is None:
         logger.error("Supabase client is not initialized. Cannot perform create_cluster_in_db operation.")
@@ -241,10 +264,16 @@ def create_cluster_in_db(centroid: np.ndarray, member_count: int) -> Optional[st
 
 def assign_article_to_cluster(article_id: int, cluster_id: str) -> None:
     """Write the cluster_id back to the article record.
-    
+    This function updates the article's cluster_id in the database.
+    It is used to assign an article to a specific cluster after processing.
     Args:
         article_id: The ID of the article
         cluster_id: The ID of the cluster to assign the article to
+    Returns:
+        None
+    Raises: 
+        APIError: If there is an error updating the article in the Supabase database.
+        Exception: If there is an unexpected error during the update operation.
     """
     if sb is None:
         logger.error(f"Supabase client is not initialized. Cannot perform assign_article_to_cluster operation for article_id {article_id}.")
@@ -261,9 +290,15 @@ def assign_article_to_cluster(article_id: int, cluster_id: str) -> None:
 
 def batch_assign_articles_to_cluster(assignments: List[Tuple[int, str]]) -> None:
     """Assign multiple articles to clusters in a single database call.
-
+    This function updates the cluster_id for multiple articles in a single batch operation.
+    This is more efficient than updating each article individually.
     Args:
         assignments: A list of ``(article_id, cluster_id)`` tuples.
+    Returns:
+        None
+    Raises:
+        APIError: If there is an error updating the articles in the Supabase database.
+        Exception: If there is an unexpected error during the batch update operation.
     """
     if sb is None:
         logger.error("Supabase client is not initialized. Cannot perform batch_assign_articles_to_cluster operation.")
@@ -283,8 +318,15 @@ def batch_assign_articles_to_cluster(assignments: List[Tuple[int, str]]) -> None
 
 def repair_zero_centroid_clusters() -> List[str]:
     """Recalculate centroids for clusters where the stored centroid is all zeros.
-
-    Returns a list of cluster IDs that were updated.
+    This function checks for clusters with a zero centroid and attempts to recalculate it based on the articles assigned to that cluster. 
+    It fetches articles belonging to each cluster and computes the new centroid as the mean of their embeddings.
+    Args:  
+        None
+    Returns:    
+        List of cluster IDs that were updated with new centroids
+    Raises: 
+        APIError: If there is an error fetching data from the Supabase database.
+        Exception: If there is an unexpected error during the repair operation.
     """
     if sb is None:
         logger.error("Supabase client is not initialized. Cannot perform repair_zero_centroid_clusters operation.")
@@ -364,7 +406,21 @@ def repair_zero_centroid_clusters() -> List[str]:
     return fixed_clusters
 
 def recalculate_cluster_member_counts() -> Dict[str, Tuple[int, int]]:
-    """Efficiently validates and corrects cluster member counts by calling a Supabase SQL function if available, or performing manual batch processing otherwise."""
+    """
+    Efficiently validates and corrects cluster member counts by calling a Supabase SQL function if available, or performing manual batch processing otherwise.
+    This function checks the current member counts in the database against the actual number of articles assigned to each cluster.
+    It uses the Supabase RPC function 'recalculate_all_cluster_member_counts' if available,
+    or falls back to manual processing if the RPC call fails or is not defined.
+    Args:
+        None
+    Returns:
+        Dict[str, Tuple[int, int]]: A dictionary mapping cluster IDs to tuples of (old_count, new_count).
+        This indicates the discrepancies found during the recalculation.
+        If no discrepancies are found, an empty dictionary is returned.
+    Raises:
+        APIError: If there is an error calling the Supabase RPC function or fetching data from the database.
+        Exception: If there is an unexpected error during the recalculation process.
+    """
     
     if sb is None:
         logger.error("Supabase client is not initialized. Cannot perform recalculate_cluster_member_counts operation.")
@@ -468,9 +524,20 @@ def recalculate_cluster_member_counts() -> Dict[str, Tuple[int, int]]:
 
 def update_old_clusters_status() -> int:
     """Update status of clusters to 'OLD' if they haven't been updated in 3 days.
-    
+    This function checks clusters that are not already marked as 'OLD' and updates their status to 'OLD' if they haven't been updated in the last 3 days.
+    It fetches clusters from the database, checks their last updated timestamp, and updates their status accordingly.
+    Args:
+        None
+    If the Supabase client is not initialized, it logs an error and raises a RuntimeError.
+    If there are any issues fetching or updating clusters, it logs the error and returns 0.
+    If clusters are successfully updated, it logs the number of clusters updated and returns that count.
+    If no clusters need to be updated, it logs that no clusters needed to be updated and returns 0.
     Returns:
         Number of clusters updated to OLD status
+    Raises:
+        RuntimeError: If the Supabase client is not initialized.
+        APIError: If there is an error fetching or updating clusters in the Supabase database.
+        Exception: If there is an unexpected error during the update operation.
     """
     
     # Ensure Supabase client is initialized, else abort with error

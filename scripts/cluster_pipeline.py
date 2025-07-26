@@ -1,6 +1,16 @@
 """
 Entry point for article clustering process.
 This file has no business logic and acts as a clean workflow runner.
+It imports the necessary modules and runs the clustering process.
+It handles the lock management to ensure only one instance runs at a time.
+The process flow is as follows:
+1. Acquire a lock to prevent concurrent runs.
+2. Check and update the status of old clusters. 
+3. Repair any clusters with zero centroid.
+4. Run the main clustering process with specified thresholds.
+5. Recalculate cluster member counts to fix any discrepancies.
+6. Release the lock after completion.
+7. Log the process steps and outcomes.
 """
 
 import logging
@@ -12,13 +22,13 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT / "src"))
 
-from modules.clustering.cluster_articles import run_clustering_process
-from core.clustering.db_access import (
+from src.modules.clustering.cluster_articles import run_clustering_process
+from src.core.clustering.db_access import (
     recalculate_cluster_member_counts,
     update_old_clusters_status,
     repair_zero_centroid_clusters,
 )
-from core.utils.lock_manager import acquire_lock, release_lock # Import lock functions
+from src.core.utils.lock_manager import acquire_lock, release_lock # Import lock functions
 
 # Set up logging
 logging.basicConfig(
@@ -29,10 +39,8 @@ logger = logging.getLogger(__name__)
 
 def process_new(threshold: float = 0.82, merge_threshold: float = 0.9) -> None:
     """Run the article clustering process with the specified similarity threshold.
-    
     This is a clean entry point without any business logic.
     All clustering functionality is delegated to the specialized modules.
-    
     Args:
         threshold: Similarity threshold for cluster matching (default: 0.82)
         merge_threshold: Threshold for merging similar clusters (default: 0.9)

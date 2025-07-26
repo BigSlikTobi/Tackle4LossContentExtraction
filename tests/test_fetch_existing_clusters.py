@@ -34,7 +34,7 @@ def test_fetch_existing_clusters_skips_null(monkeypatch):
     monkeypatch.setenv("SUPABASE_KEY", "y")
 
     import importlib
-    import core.clustering.db_access as db_module
+    import src.core.clustering.db_access as db_module
     db_access = importlib.reload(db_module)
     monkeypatch.setattr(db_access, "sb", dummy)
 

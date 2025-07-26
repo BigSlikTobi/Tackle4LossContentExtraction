@@ -1,24 +1,26 @@
 from openai import OpenAI, APIError, APITimeoutError, RateLimitError, APIConnectionError, APIStatusError
 import os
-import sys # Keep sys for sys.stderr for now, though logger is preferred
+import sys 
 from dotenv import load_dotenv
 from typing import List, Optional
 from supabase import create_client, Client
-import numpy as np  # Add numpy for vector normalization
+import numpy as np  
 import logging
 
 logger = logging.getLogger(__name__)
+
 # Basic configuration for the logger if no other logging is set up in the project
 if not logger.hasHandlers():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', stream=sys.stderr)
 
-
+# Load environment variables from .env file for local development.
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# Check if running in CI environment and set a flag
 IS_CI = os.getenv("CI") == 'true' or os.getenv("GITHUB_ACTIONS") == 'true'
 
 # Initialize OpenAI client
@@ -44,7 +46,20 @@ def create_embedding(text: str, article_id: Optional[int] = None) -> Optional[Li
     """
     Create an embedding for the given text using OpenAI's API.
     Uses text-embedding-3-small which produces 1536D vectors.
-    Returns None if an API error occurs or if the client is not initialized.
+    Args:
+        text (str): The text to create an embedding for.
+        article_id (Optional[int]): The ID of the article for logging purposes.
+    Returns:
+        Optional[List[float]]: The embedding vector as a list of floats, or None if an error occurs.
+    Raises: 
+        ValueError: If the OpenAI client is not initialized or does not have an API key.
+        APIError: If there is an error from the OpenAI API (e.g., rate limit exceeded, API timeout).
+        APITimeoutError: If the OpenAI API request times out.
+        RateLimitError: If the OpenAI API rate limit is exceeded.
+        APIConnectionError: If there is a connection error with the OpenAI API.
+        APIStatusError: If the OpenAI API returns a 4xx status code.
+        APIError: For other OpenAI API errors (e.g., 5xx server errors).
+        Exception: For any other unexpected errors.
     """
     if openai_client_instance is None:
         logger.error("OpenAI client is not initialized (likely missing API key). Cannot create embedding for article_id: %s.", article_id)
@@ -82,7 +97,14 @@ def create_embedding(text: str, article_id: Optional[int] = None) -> Optional[Li
 
 def normalize_embedding(embedding: List[float]) -> List[float]:
     """
-    Normalize an embedding vector to have unit length (L2 norm)
+    Normalize an embedding vector to have unit length (L2 norm) 
+    This function ensures that the embedding vector is normalized to unit length. 
+    Args:
+        embedding (List[float]): The embedding vector to normalize.
+    Returns:
+        List[float]: The normalized embedding vector.
+    Raises:
+        ValueError: If the embedding is empty or not a list of floats.
     """
     embedding_array = np.array(embedding)
     norm = np.linalg.norm(embedding_array)
@@ -95,6 +117,14 @@ def normalize_embedding(embedding: List[float]) -> List[float]:
 def store_embedding(article_id: int, embedding: List[float]) -> None:
     """
     Store the embedding in the ArticleVector table
+    This function stores the embedding vector in the ArticleVector table in Supabase. 
+    Args:
+        article_id (int): The ID of the article to associate with the embedding.
+        embedding (List[float]): The normalized embedding vector to store.
+    Returns:
+        None
+    Raises:
+        Exception: If there is an error storing the embedding in Supabase.
     """
     # Check CI status dynamically for tests
     is_ci = os.getenv("CI") == 'true' or os.getenv("GITHUB_ACTIONS") == 'true'
@@ -120,6 +150,16 @@ def store_embedding(article_id: int, embedding: List[float]) -> None:
 def create_and_store_embedding(article_id: int, content: str) -> None:
     """
     Create and store an embedding for an article
+    This function creates an embedding for the given content and stores it in the ArticleVector table.
+    It is the end to end function that handles the entire process of creating and storing an embedding.
+    Args:
+        article_id (int): The ID of the article to create an embedding for.
+        content (str): The content of the article to create an embedding for.
+    Returns:
+        None       
+    Raises:
+        ValueError: If the embedding creation fails or the format is invalid.
+        Exception: If there is an error during the embedding creation or storage process.
     """
     # No try-except needed here anymore if sub-functions handle their errors and log them.
     # This function becomes an orchestrator.

@@ -11,7 +11,7 @@ IS_CI = os.getenv("CI") == 'true' or os.getenv("GITHUB_ACTIONS") == 'true'
 # Attempt to import sb and recalculate_cluster_member_counts
 # This structure assumes that db_access.py can be imported and sb is initialized.
 # If sb initialization depends on .env files, they must be present for the test environment.
-from core.clustering.db_access import sb, recalculate_cluster_member_counts, init_supabase_client
+from src.core.clustering.db_access import sb, recalculate_cluster_member_counts, init_supabase_client
 
 # Enable logging to see the function's output during tests
 # Configure once, not in every test or helper

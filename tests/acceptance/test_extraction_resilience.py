@@ -10,7 +10,7 @@ import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
 # Modules to be tested or that contain components to be mocked
-from modules.extraction.extractContent import main as run_extraction_main, extract_main_content
+from src.modules.extraction.extractContent import main as run_extraction_main, extract_main_content
 # Mocked crawl4ai result structure (simplified)
 class MockCrawl4aiResult:
     def __init__(self, extracted_content=None, error_message=None):
@@ -35,12 +35,12 @@ class TestExtractionResilience(unittest.IsolatedAsyncioTestCase): # Use Isolated
         self.long_content = "This is a long and valid piece of content that is definitely over fifty characters long."
         self.short_content = "Too short."
 
-    @patch('modules.extraction.extractContent.get_unprocessed_articles')
-    @patch('modules.extraction.extractContent.AsyncWebCrawler') # To mock arun
+    @patch('src.modules.extraction.extractContent.get_unprocessed_articles')
+    @patch('src.modules.extraction.extractContent.AsyncWebCrawler') # To mock arun
     @patch('builtins.open', new_callable=unittest.mock.mock_open) # To mock json.dump's file writing
     @patch('json.dump') # To capture what's "written" to file
     @patch('builtins.print') # To capture log messages from main and extract_main_content
-    @patch('modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock) # Mock sleep in extract_main_content
+    @patch('src.modules.extraction.extractContent.asyncio.sleep', new_callable=AsyncMock) # Mock sleep in extract_main_content
     async def test_extraction_failures_are_handled(self, mock_asyncio_sleep, mock_builtin_print, mock_json_dump, mock_file_open, MockAsyncWebCrawler, mock_get_unprocessed_articles):
         test_logger.info("\n--- Scenario 2: Web Scraping/Extraction Failure ---")
 

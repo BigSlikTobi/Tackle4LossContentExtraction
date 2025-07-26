@@ -6,6 +6,9 @@ from unittest import mock
 import numpy as np
 import pytest
 
+# Add src directory to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+
 # Ensure modules can be reloaded with patched dependencies
 @pytest.fixture(autouse=True)
 def _prepend_parent_dir_to_syspath(monkeypatch):
@@ -22,9 +25,9 @@ def _patch_env(monkeypatch):
 
 
 def reload_modules(monkeypatch):
-    db_module = importlib.reload(importlib.import_module("core.clustering.db_access"))
+    db_module = importlib.reload(importlib.import_module("src.core.clustering.db_access"))
     monkeypatch.setattr(db_module, "update_old_clusters_status", lambda: 0)
-    manager_module = importlib.reload(importlib.import_module("core.clustering.cluster_manager"))
+    manager_module = importlib.reload(importlib.import_module("src.core.clustering.cluster_manager"))
     return manager_module, db_module
 
 

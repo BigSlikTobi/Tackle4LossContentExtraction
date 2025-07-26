@@ -17,9 +17,14 @@ def ce_fixture():
     supabase_mock.Client = mock.Mock()
     openai_mock = ModuleType("openai")
     openai_mock.OpenAI = mock.Mock(return_value=mock.Mock())
+    openai_mock.APIError = Exception  # Mock the APIError class
+    openai_mock.APITimeoutError = Exception
+    openai_mock.RateLimitError = Exception
+    openai_mock.APIConnectionError = Exception
+    openai_mock.APIStatusError = Exception
 
     with mock.patch.dict(sys.modules, {"supabase": supabase_mock, "openai": openai_mock}):
-        ce = importlib.import_module("core.utils.create_embeddings")
+        ce = importlib.import_module("src.core.utils.create_embeddings")
         yield ce
 
 

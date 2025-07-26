@@ -1,13 +1,22 @@
 """
 Business logic for article clustering.
+This module manages the clustering process, including updating cluster statuses,
+creating new clusters, and finding matches for articles.
+It handles the core logic for clustering articles based on their content vectors,
+and interacts with the database to manage cluster data.
+It also includes methods for updating cluster member counts and merging similar clusters.
+This module is designed to be used by the clustering pipeline and does not contain any
+business logic outside of clustering operations.
+It is intended to be used in conjunction with the `cluster_pipeline.py` script,
+which orchestrates the overall clustering workflow and not as a standalone script.
 """
 
 import numpy as np
 import logging
 from typing import Dict, List, Tuple, Optional
 
-from core.clustering.vector_utils import cosine_similarity, normalize_vector_dimensions
-from core.clustering.db_access import (
+from src.core.clustering.vector_utils import cosine_similarity, normalize_vector_dimensions
+from src.core.clustering.db_access import (
     update_cluster_in_db,
     create_cluster_in_db,
     batch_assign_articles_to_cluster
@@ -32,33 +41,35 @@ class ClusterManager:
     def __init__(self, similarity_threshold: float = 0.82, check_old_clusters: bool = True):
         """
         Initialize the ClusterManager.
-
+        This sets up the similarity threshold and initializes the pending articles and clusters.
         Args:
             similarity_threshold (float): Minimum similarity score for articles to be considered related.
             check_old_clusters (bool): Whether to check and update status of old clusters during initialization.
+        Returns:
+            None
+        Raises:
+            ValueError: If similarity_threshold is not between 0 and 1.
         """
         self.similarity_threshold = similarity_threshold
         self.pending_articles: Dict[int, np.ndarray] = {}
         self.clusters: List[Tuple[str, np.ndarray, int]] = []
         # Check and update cluster statuses if enabled
         if check_old_clusters:
-            from core.clustering.db_access import update_old_clusters_status
+            from src.core.clustering.db_access import update_old_clusters_status
             update_old_clusters_status()
 
     def update_cluster(self, cluster_id: str, old_centroid: np.ndarray, 
                       old_count: int, new_vector: np.ndarray) -> Tuple[np.ndarray, int]:
         """
         Update a cluster with a new article vector.
-
+        This recalculates the centroid and member count of the cluster.
         Args:
             cluster_id (str): The ID of the cluster to update.
             old_centroid (np.ndarray): The current centroid of the cluster.
             old_count (int): The current member count of the cluster.
             new_vector (np.ndarray): The vector of the article to add to the cluster.
-
         Returns:
             Tuple[np.ndarray, int]: The new centroid and the updated member count.
-
         Raises:
             ValueError: If the cluster member count is less than 2.
         """
@@ -77,13 +88,11 @@ class ClusterManager:
     def create_cluster(self, vectors: List[np.ndarray]) -> Tuple[str, np.ndarray, int]:
         """
         Create a new cluster from a list of vectors.
-
+        This calculates the centroid of the provided vectors and creates a new cluster in the database.
         Args:
             vectors (List[np.ndarray]): List of article vectors to form a cluster.
-
         Returns:
             Tuple[str, np.ndarray, int]: The cluster ID, centroid, and member count.
-
         Raises:
             ValueError: If no vectors are provided.
         """
@@ -100,13 +109,13 @@ class ClusterManager:
         return cluster_id, centroid, len(vectors)
 
     def find_best_cluster_match(self, 
-                               article_vec: np.ndarray) -> Optional[Tuple[str, np.ndarray, int, float]]:
+                                article_vec: np.ndarray) -> Optional[Tuple[str, np.ndarray, int, float]]:
         """
         Find the best matching cluster for an article vector.
-
+        This compares the article vector against existing clusters and returns the best match above the similarity threshold.
+        If no suitable match is found, it returns None.
         Args:
             article_vec (np.ndarray): The vector of the article to match.
-
         Returns:
             Optional[Tuple[str, np.ndarray, int, float]]: Tuple with cluster ID, centroid, count, and similarity score if a match is found, or None if no suitable match is found.
         """
@@ -126,10 +135,10 @@ class ClusterManager:
                                article_vec: np.ndarray) -> Optional[Tuple[int, np.ndarray, float]]:
         """
         Find the best matching pending article.
-
+        This compares the article vector against pending articles and returns the best match above the similarity threshold.
+        If no suitable match is found, it returns None.
         Args:
             article_vec (np.ndarray): The vector of the article to match.
-
         Returns:
             Optional[Tuple[int, np.ndarray, float]]: Tuple with article ID, vector, and similarity score if a match is found, or None if no suitable match is found.
         """
@@ -145,10 +154,15 @@ class ClusterManager:
     def add_to_pending(self, article_id: int, vector: np.ndarray) -> None:
         """
         Add an article to the pending list.
-
+        This stores articles that are not yet assigned to any cluster.
+        This is useful for articles that are still being processed or need to be clustered later.
         Args:
             article_id (int): ID of the article to add.
             vector (np.ndarray): The vector of the article.
+        Returns:
+            None
+        Raises:
+            ValueError: If the vector is not a valid numpy array.
         """
         self.pending_articles[article_id] = vector
         logger.debug(f"Added article {article_id} to pending list")
@@ -156,9 +170,14 @@ class ClusterManager:
     def remove_from_pending(self, article_id: int) -> None:
         """
         Remove an article from the pending list.
-
+        This is used when an article has been successfully clustered or processed.
+        It ensures that the pending articles list is kept up-to-date.   
         Args:
             article_id (int): ID of the article to remove.
+        Returns:
+            None
+        Raises:
+            KeyError: If the article ID is not found in the pending list.
         """
         if article_id in self.pending_articles:
             del self.pending_articles[article_id]
@@ -167,27 +186,29 @@ class ClusterManager:
     def update_cluster_statuses(self) -> int:
         """
         Update the statuses of clusters based on their age.
-
         This method marks clusters as 'OLD' if they haven't been updated in 5 days and aren't already marked as 'OLD'.
-
+        It returns the number of clusters that were updated.
+        Args:
+            None    
         Returns:
             int: Number of clusters updated to 'OLD' status.
+        Raises:
+            Exception: If there is an error updating the cluster statuses in the database.
         """
-        from core.clustering.db_access import update_old_clusters_status
+        from src.core.clustering.db_access import update_old_clusters_status
         return update_old_clusters_status()
 
     def check_and_merge_similar_clusters(self, merge_threshold: float = 0.9) -> bool:
         """
         Check if there are any highly similar clusters that should be merged.
-        
-        This method compares all pairs of clusters and merges them if their centroids are very similar.
-        
+        This method compares all pairs of clusters and merges them if their centroids are very similar. 
         Args:
             merge_threshold (float): Minimum similarity score for clusters to be considered for merging.
-                                   Should be higher than the regular similarity_threshold.
-        
+                                   Should be higher than the regular similarity_threshold. 
         Returns:
             bool: True if any clusters were merged, False otherwise.
+        Raises:
+            ValueError: If merge_threshold is not between 0 and 1.
         """
         if len(self.clusters) < 2:
             logger.debug("Not enough clusters to consider merging.")
@@ -223,7 +244,7 @@ class ClusterManager:
                         update_cluster_in_db(primary_id, new_centroid, total_count, isContent=False)
                         
                         # Reassign articles from secondary cluster to primary cluster in batch
-                        from core.clustering.db_access import sb
+                        from src.core.clustering.db_access import sb
                         articles_resp = sb.table("SourceArticles").select("id").eq("cluster_id", secondary_id).execute()
                         sec_ids = [a["id"] for a in articles_resp.data]
                         batch_assign_articles_to_cluster([(aid, primary_id) for aid in sec_ids])

@@ -9,10 +9,10 @@ import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
 # Modules to be tested or that contain components to be mocked
-from core.clustering.db_access import (
+from src.core.clustering.db_access import (
     fetch_unclustered_articles,
     assign_article_to_cluster,
-    # sb as supabase_client_instance # Not needed if we patch 'core.clustering.db_access.sb'
+    # sb as supabase_client_instance # Not needed if we patch 'src.core.clustering.db_access.sb'
 )
 from postgrest.exceptions import APIError # For simulating Supabase errors
 
@@ -26,7 +26,7 @@ test_logger.addHandler(stream_handler)
 # This allows us to assert that logger.error was called within db_access functions
 db_access_logger_mock = MagicMock(spec=logging.Logger)
 
-@patch('core.clustering.db_access.logger', db_access_logger_mock) # Patch the logger inside db_access.py
+@patch('src.core.clustering.db_access.logger', db_access_logger_mock) # Patch the logger inside db_access.py
 class TestClusteringDbResilience(unittest.TestCase):
 
     def setUp(self):
@@ -37,7 +37,7 @@ class TestClusteringDbResilience(unittest.TestCase):
             (3, np.array([0.5, 0.6])),
         ]
 
-    @patch('core.clustering.db_access.sb') # Mock the Supabase client 'sb' in db_access.py
+    @patch('src.core.clustering.db_access.sb') # Mock the Supabase client 'sb' in db_access.py
     def test_db_failure_fetch_unclustered(self, mock_sb_client):
         test_logger.info("\n--- Scenario 3a: Supabase DB Failure during fetch_unclustered_articles ---")
 
@@ -66,7 +66,7 @@ class TestClusteringDbResilience(unittest.TestCase):
         test_logger.info("--- Test Scenario 3a Complete ---")
 
 
-    @patch('core.clustering.db_access.sb') # Mock the Supabase client 'sb' in db_access.py
+    @patch('src.core.clustering.db_access.sb') # Mock the Supabase client 'sb' in db_access.py
     def test_db_failure_assign_article_to_cluster(self, mock_sb_client):
         test_logger.info("\n--- Scenario 3b: Supabase DB Failure during assign_article_to_cluster ---")
         db_access_logger_mock.reset_mock() # Reset from previous test if any calls were made

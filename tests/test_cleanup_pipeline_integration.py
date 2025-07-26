@@ -4,14 +4,15 @@ import sys
 import subprocess
 import tempfile # For LOCK_FILE_PATH consistency
 
-# Add the parent directory to sys.path to allow imports from core.utils
+# Add the parent directory to sys.path to allow imports from src.core.utils
 # This also helps the script locate core.utils.lock_manager when running the pipeline
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from core.utils.lock_manager import LOCK_FILE_PATH # Use the centralized lock file path
+from src.core.utils.lock_manager import LOCK_FILE_PATH # Use the centralized lock file path
 
 # Determine the path to the cleanup_pipeline.py script
-PIPELINE_SCRIPT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'cleanup_pipeline.py'))
+PIPELINE_SCRIPT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scripts', 'cleanup_pipeline.py'))
 
 class TestCleanupPipelineIntegration(unittest.TestCase):
 

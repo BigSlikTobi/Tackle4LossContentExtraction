@@ -55,8 +55,8 @@ def test_basic_imports():
     
     # Test basic imports that don't require external connections
     try:
-        from modules.extraction import extractContent
-        from modules.extraction import cleanContent
+        from src.modules.extraction import extractContent
+        from src.modules.extraction import cleanContent
         assert True  # Import successful
     except ImportError as e:
         pytest.skip(f"Module import failed: {e}")
