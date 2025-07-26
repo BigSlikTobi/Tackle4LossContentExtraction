@@ -143,7 +143,7 @@ def num_tokens(text: str, model: str) -> int:
         model (str): The model to use for tokenization.
     Returns:    
         int: The number of tokens in the text.
-    Raises: 
+    Raises:
         KeyError: If the model is not recognized by tiktoken.
         Exception: For any other unexpected errors.
     """
