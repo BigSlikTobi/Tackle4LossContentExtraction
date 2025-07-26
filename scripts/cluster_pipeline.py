@@ -22,13 +22,35 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT / "src"))
 
-from src.modules.clustering.cluster_articles import run_clustering_process
-from src.core.clustering.db_access import (
-    recalculate_cluster_member_counts,
-    update_old_clusters_status,
-    repair_zero_centroid_clusters,
-)
-from src.core.utils.lock_manager import acquire_lock, release_lock # Import lock functions
+# Import modules - check if we're in CI environment with PYTHONPATH set to root
+if os.getenv('PYTHONPATH') == '.' or os.getenv('CI') == 'true':
+    # In CI environment, imports are relative to project root
+    from src.modules.clustering.cluster_articles import run_clustering_process
+    from src.core.clustering.db_access import (
+        recalculate_cluster_member_counts,
+        update_old_clusters_status,
+        repair_zero_centroid_clusters,
+    )
+    from src.core.utils.lock_manager import acquire_lock, release_lock
+else:
+    # In local environment, imports are relative to src directory
+    try:
+        from modules.clustering.cluster_articles import run_clustering_process
+        from core.clustering.db_access import (
+            recalculate_cluster_member_counts,
+            update_old_clusters_status,
+            repair_zero_centroid_clusters,
+        )
+        from core.utils.lock_manager import acquire_lock, release_lock
+    except ImportError:
+        # Fallback to src. prefix if relative imports fail
+        from src.modules.clustering.cluster_articles import run_clustering_process
+        from src.core.clustering.db_access import (
+            recalculate_cluster_member_counts,
+            update_old_clusters_status,
+            repair_zero_centroid_clusters,
+        )
+        from src.core.utils.lock_manager import acquire_lock, release_lock
 
 # Set up logging
 logging.basicConfig(
