@@ -40,7 +40,7 @@ jobs:
           python -m pip install --upgrade pip
           # Pin Playwright Python to a known-good version for your codebase
           # (adjust if you know the exact version you had when it worked)
-          sed -i '1i playwright==1.47.2' requirements.txt
+          sed -i '1i playwright==1.47.0' requirements.txt
           pip install -r requirements.txt
 
       - name: Install Playwright browsers
