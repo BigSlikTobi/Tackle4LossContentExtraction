@@ -2,8 +2,7 @@ name: Run T4L Content Pipeline
 
 on:
   schedule:
-    # Run every 20th minute after the full hour, except between 01:00 and 08:00 UTC
-    - cron: '20 0,8-23 * * *'
+    - cron: '20 0,8-23 * * *'   # 00:20, 08:20–23:20 UTC
   workflow_dispatch:
 
 concurrency:
@@ -13,21 +12,20 @@ concurrency:
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 55  # keep under your 60-min schedule gap
+    timeout-minutes: 55
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       PYTHONPATH: .
-      PLAYWRIGHT_VERSION: '1.47.2'  # pin to a known-good; update when you choose
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PLAYWRIGHT_VERSION: "1.47.2"   # set to your known-good
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Pin Node LTS for the Playwright Node driver
-      - name: Set up Node
+      - name: Set up Node (for Playwright driver)
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -38,26 +36,18 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Install Python dependencies (pin Playwright)
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || true
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # remove this line if Playwright is already pinned in requirements.txt
           pip install "playwright==${PLAYWRIGHT_VERSION}"
 
-      - name: Determine Playwright version (for cache key)
+      - name: Determine Playwright version (for cache)
         run: |
-          python - <<'PY'
-import os
-try:
-    import importlib.metadata as m
-    v = m.version("playwright")
-except Exception as e:
-    print("playwright version lookup failed:", repr(e))
-    v = "unknown"
-print("playwright", v)
-with open(os.environ["GITHUB_ENV"], "a") as f:
-    f.write(f"PW_VERSION={v}\n")
-PY
+          PV=$(python -c "import importlib.metadata as m; print(m.version('playwright'))")
+          echo "Playwright $PV"
+          echo "PW_VERSION=$PV" >> "$GITHUB_ENV"
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -65,22 +55,14 @@ PY
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ env.PW_VERSION }}
 
-      - name: Install Playwright browsers (idempotent with cache)
-        run: |
-          python -m playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: python -m playwright install --with-deps chromium
 
-      - name: Print runtime versions (sanity check)
+      - name: Print runtime versions
         run: |
           node -v
-          python - <<'PY'
-import sys
-print("py", sys.version)
-try:
-    import importlib.metadata as m
-    print("playwright", m.version("playwright"))
-except Exception as e:
-    print("playwright version lookup failed:", repr(e))
-PY
+          python -c "import sys; print('py', sys.version)"
+          python -c "import importlib.metadata as m; print('playwright', m.version('playwright'))"
 
       - name: Run article cleanup pipeline
         run: python scripts/cleanup_pipeline.py
