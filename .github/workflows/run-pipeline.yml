@@ -15,17 +15,21 @@ concurrency:
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
+    timeout-minutes: 58  # Prevent workflows from running too long
     env: # <-- Moved env block here
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       PYTHONPATH: .
+      # Playwright stability settings for CI
+      PLAYWRIGHT_BROWSERS_PATH: /home/runner/.cache/playwright
+      NODE_OPTIONS: "--max-old-space-size=4096"
       # Add any other environment variables used in your application
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -42,8 +46,18 @@ jobs:
         run: |
           python -m playwright install --with-deps chromium
           
-      - name: Run article cleanup pipeline
-        run: python scripts/cleanup_pipeline.py
+      - name: Run article cleanup pipeline (batched)
+        timeout-minutes: 40 
+        run: python scripts/cleanup_pipeline_batched.py --batch-size 3 --delay 5 --max-batches 10
 
-      - name: Run article cluster pipeline
-        run: python scripts/cluster_pipeline.py
+      - name: Run article cluster pipeline (CI-optimized)
+        timeout-minutes: 15
+        run: python scripts/cluster_pipeline_ci.py --max-retries 3
+        
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pipeline-logs
+          path: logs/
+          retention-days: 7
