@@ -17,3 +17,4 @@ pandas==1.5.3
 beautifulsoup4==4.13.4
 lxml==5.4.0
 nfl_data_py==0.3.3
+

@@ -2,10 +2,7 @@ name: Run T4L Content Pipeline
 
 on:
   schedule:
-    # Run every 20th minute after the full hour, except between 01:00 and 08:00 UTC
-    # This means it will run at 00:20, 08:20, 09:20, ..., 23:20 UTC
-    - cron: '20 0,8-23 * * *'
-  # Allow manual triggering
+    - cron: '20 0,8-23 * * *'   # 00:20, 08:20–23:20 UTC
   workflow_dispatch:
 
 concurrency:
@@ -16,7 +13,7 @@ jobs:
   run-pipeline:
     runs-on: ubuntu-latest
     timeout-minutes: 58  # Prevent workflows from running too long
-    env: # <-- Moved env block here
+    env: 
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
@@ -32,17 +29,34 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
-          
-      - name: Install dependencies
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # remove this line if Playwright is already pinned in requirements.txt
+          pip install "playwright==${PLAYWRIGHT_VERSION}"
+
+      - name: Determine Playwright version (for cache)
+        run: |
+          PV=$(python -c "import importlib.metadata as m; print(m.version('playwright'))")
+          echo "Playwright $PV"
+          echo "PW_VERSION=$PV" >> "$GITHUB_ENV"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ env.PW_VERSION }}
+
       - name: Install Playwright browsers
+        run: python -m playwright install --with-deps chromium
+
+      - name: Print runtime versions
         run: |
           python -m playwright install --with-deps chromium
           
