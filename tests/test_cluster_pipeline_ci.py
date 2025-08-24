@@ -40,7 +40,7 @@ class TestClusterPipelineCI(unittest.TestCase):
         process_env = os.environ.copy()
         process_env.update({
             'SUPABASE_URL': 'http://dummy.url',
-            'SUPABASE_KEY': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
+            'SUPABASE_KEY': 'test_supabase_key',
             'OPENAI_API_KEY': 'dummy_openai_key',
             'DEEPSEEK_API_KEY': 'dummy_deepseek_key',
             'PYTHONPATH': os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
