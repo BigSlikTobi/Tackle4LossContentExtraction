@@ -12,24 +12,22 @@ concurrency:
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
-    env:
+    timeout-minutes: 58  # Prevent workflows from running too long
+    env: 
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       PYTHONPATH: .
-      PIP_DISABLE_PIP_VERSION_CHECK: "1"
-      PLAYWRIGHT_VERSION: "1.51.0"
-
+      # Playwright stability settings for CI
+      PLAYWRIGHT_BROWSERS_PATH: /home/runner/.cache/playwright
+      NODE_OPTIONS: "--max-old-space-size=4096"
+      # Add any other environment variables used in your application
+    
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node (for Playwright driver)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -59,12 +57,20 @@ jobs:
 
       - name: Print runtime versions
         run: |
-          node -v
-          python -c "import sys; print('py', sys.version)"
-          python -c "import importlib.metadata as m; print('playwright', m.version('playwright'))"
+          python -m playwright install --with-deps chromium
+          
+      - name: Run article cleanup pipeline (batched)
+        timeout-minutes: 40 
+        run: python scripts/cleanup_pipeline_batched.py --batch-size 3 --delay 5 --max-batches 10
 
-      - name: Run article cleanup pipeline
-        run: python scripts/cleanup_pipeline.py
-
-      - name: Run article cluster pipeline
-        run: python scripts/cluster_pipeline.py
+      - name: Run article cluster pipeline (CI-optimized)
+        timeout-minutes: 15
+        run: python scripts/cluster_pipeline_ci.py --max-retries 3
+        
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-logs
+          path: logs/
+          retention-days: 7
