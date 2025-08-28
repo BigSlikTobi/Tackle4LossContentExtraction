@@ -44,10 +44,11 @@ else:
         )
         from src.core.utils.lock_manager import acquire_lock, release_lock
 
-# Set up logging
+# Set up logging to write to stdout instead of stderr
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
 )
 logger = logging.getLogger(__name__)
 
@@ -155,6 +156,19 @@ if __name__ == "__main__":
                         help='Maximum number of retry attempts (default: 3)')
     
     args = parser.parse_args()
+    
+    # Validate arguments
+    if args.threshold < 0.0 or args.threshold > 1.0:
+        print("error: threshold must be between 0.0 and 1.0", file=sys.stderr)
+        sys.exit(2)
+    
+    if args.merge_threshold < 0.0 or args.merge_threshold > 1.0:
+        print("error: merge-threshold must be between 0.0 and 1.0", file=sys.stderr)
+        sys.exit(2)
+        
+    if args.max_retries < 1:
+        print("error: max-retries must be at least 1", file=sys.stderr)
+        sys.exit(2)
     
     process_new_ci(
         threshold=args.threshold,
