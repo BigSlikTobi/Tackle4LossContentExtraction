@@ -74,7 +74,7 @@ class TestPipelineFunctionalTests(unittest.TestCase):
         self.assertIn('url = unquote(url)', article_processor_source)
         
         self.assertIn('from urllib.parse import unquote', extract_content_source)
-        self.assertIn('url = unquote(url)', extract_content_source)
+        self.assertIn('url = unquote(article["url"])', extract_content_source)
 
     @patch.dict(os.environ, {
         'SUPABASE_URL': 'http://test.supabase.co',
